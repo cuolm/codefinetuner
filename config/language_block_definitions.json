@@ -19,7 +19,6 @@
       "return_statement",
       "field_declaration_list",
       "field_declaration",
-      "struct_specifier",
       "enumerator_list",
       "enumerator"
     ]
