@@ -1,0 +1,463 @@
+import argparse
+import torch
+import gc
+import json
+import re
+import math
+from dataclasses import dataclass, field
+from pathlib import Path
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers.trainer_utils import get_last_checkpoint
+from peft import PeftModel
+from metrics.codebleu_adapter import codebleu_score
+import pprint as pp
+import matplotlib.pyplot as plt
+import numpy as np
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+import nltk
+from nltk.tokenize import word_tokenize
+from create_benchmark_dataset import create_benchmark_dataset
+
+
+@dataclass
+class Config:
+    model_name: str = "Qwen/Qwen2.5-Coder-7B"
+    fim_prefix_token: str = "<|fim_prefix|>"
+    fim_suffix_token: str = "<|fim_suffix|>"
+    fim_middle_token: str = "<|fim_middle|>"
+    fim_pad_token: str = "<|fim_pad|>"
+    input_sample_size: int = 2000 
+    min_fim_middle_chars: int = 10  
+
+    gen_max_new_tokens: int = 128 
+    gen_do_sample: bool = False  # Note: if set to False temperature and top_p have no effect
+    gen_temperature: float = 0.7
+    gen_top_p: float = 0.95
+
+    project_root_path: Path = field(init=False)
+    trainer_output_dir_path: Path = field(init=False)
+    input_dataset_path: Path = field(init=False)  # Tokenized dataset under /datasets e.g. test_dataset.jsonl
+    benchmark_dataset_path: Path = field(init=False)
+    base_results_tmp_path: Path = field(init=False)
+    comparison_results_path: Path = field(init=False)
+    plot_file: Path = field(init=False)
+    device: str = field(init=False)
+
+    # CodeBLEU weights (must sum to 1.0)
+    # See: https://arxiv.org/pdf/2009.10297  Section 4.4 for parameter suggestions 0.1, 0.1, 0.4, 0.4
+    cb_language: str = "c"
+    cb_score_name: str = "codebleu"
+    cb_ngram_weight: float = 0.1         # Token-level overlap (standard BLEU)
+    cb_weighted_ngram_weight: float = 0.1 # Keyword-level overlap (importance-weighted)
+    cb_syntax_ast_weight: float = 0.4     # Structural correctness (Abstract Syntax Tree)
+    cb_dataflow_weight: float = 0.4       # Logic consistency (Variable dependency graph)
+    cb_plot_file: Path = field(init=False)
+
+    # Sentence-BLEU weights (must sum to 1.0)
+    sb_score_name: str = "sentencebleu"
+    sb_ngram_weight_1: float = 0.25  # 1-gram
+    sb_ngram_weight_2: float = 0.25  # 2-gram  
+    sb_ngram_weight_3: float = 0.25  # 3-gram
+    sb_ngram_weight_4: float = 0.25  # 4-gram
+    sb_plot_file: Path = field(init=False)
+
+    em_score_name: str = "em"
+    em_plot_file: Path = field(init=False)
+
+    passk_prefix_name: str = "passk"
+    passk_number_of_lines: int = 2  # 5 is standard production value (Sourcegraph, Cursor IDE)
+    passk_prefix_plot_file: Path = field(init=False)
+
+    perplexity_name: str = "ppl"
+    perplexity_plot_file: Path = field(init=False)
+
+    def __post_init__(self):
+        if torch.cuda.is_available():
+            self.device = "cuda"
+        elif torch.backends.mps.is_available():
+            self.device = "mps"
+        else:
+            self.device = "cpu"
+
+        cb_total = (self.cb_ngram_weight + self.cb_weighted_ngram_weight +
+            self.cb_syntax_ast_weight + self.cb_dataflow_weight)
+        if abs(cb_total - 1.0) > 1e-6:
+            raise ValueError(f"CodeBLEU weights must sum to 1.0, got {cb_total}")
+
+        self.project_root_path = Path(__file__).resolve().parent.parent
+        self.trainer_output_dir_path = self.project_root_path / "results"
+        self.input_dataset_path = self.project_root_path / "datasets" / "test_dataset.jsonl"
+        self.benchmark_dataset_path = self.project_root_path / "benchmarks" / "pebble_test_examples.jsonl"
+        self.base_results_tmp_path = self.project_root_path / "benchmarks" / "results" / "base_results_tmp.jsonl"
+        self.comparison_results_path = self.project_root_path / "benchmarks" / "results" / "comparison_results.jsonl"
+        self.cb_plot_file = self.project_root_path / "benchmarks" / "results" / "codebleu_plot.png"
+        self.sb_plot_file = self.project_root_path / "benchmarks" / "results" / "sentencebleu_plot.png"
+        self.em_plot_file = self.project_root_path / "benchmarks" / "results" / "em_plot.png"
+        self.passk_prefix_plot_file = self.project_root_path / "benchmarks" / "results" / "passk_prefix_plot.png"
+        self.perplexity_plot_file = self.project_root_path / "benchmarks" / "results" / "perplexity_plot.png"
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Generate code comparison")
+    parser.add_argument("--checkpoint",
+                        type=str,
+                        required=True,
+                        metavar="NAME_OR_LAST",
+                        help='Checkpoint name, or "last"')
+    parser.add_argument("--plot_only",
+                        action="store_true",
+                        default=False,  # Explicitly stating the default
+                        help="Skip generation; use existing data to update plots")
+    return parser.parse_args()
+
+
+def _generate_code(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, prompt: str) -> tuple[str, str]:
+    model.eval()
+    input_tokens_dict = tokenizer(prompt, return_tensors="pt").to(config.device)
+
+    bad_words_ids = [
+        tokenizer.encode(config.fim_prefix_token, add_special_tokens=False),
+        tokenizer.encode(config.fim_middle_token, add_special_tokens=False),
+        tokenizer.encode(config.fim_suffix_token, add_special_tokens=False)
+    ]
+    
+    outputs = model.generate(
+            input_ids=input_tokens_dict["input_ids"],
+            attention_mask=input_tokens_dict["attention_mask"], 
+            max_new_tokens=config.gen_max_new_tokens,
+            do_sample=config.gen_do_sample,
+            temperature=config.gen_temperature,
+            top_p=config.gen_top_p,
+            bad_words_ids=bad_words_ids,
+            pad_token_id=tokenizer.pad_token_id
+        )
+
+    # Slice the output: take everything after the input_length. generate functin returns the whole example, not only the generated text
+    input_length = input_tokens_dict["input_ids"].shape[1]
+    generated_tokens = outputs[0][input_length:]
+
+    full_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    generated_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+    return generated_text, full_text 
+
+
+def _clear_hardware_cache(config: Config) -> None:
+    gc.collect()
+    if config.device == "cuda":
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+    elif config.device == "mps":
+        torch.mps.empty_cache()
+
+
+def _get_codebleu(config: Config, reference: str, prediction: str) -> float:
+    # Set weights: [n-gram, weighted n-gram, syntax (AST), data-flow]
+    # Standard weighting for C is [0.25, 0.25, 0.25, 0.25]
+    try:
+        codebleu_algorithm_weights = (config.cb_ngram_weight, config.cb_weighted_ngram_weight, config.cb_syntax_ast_weight, config.cb_dataflow_weight)
+        result = codebleu_score([reference], [prediction], lang=config.cb_language, weights=codebleu_algorithm_weights)
+        return result['codebleu']
+    except Exception as e:
+        print(f"ERROR in CodeBLEU calcualtion: {e}")
+        return 0.0
+
+
+def _get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
+    """Calculate Sentence-BLEU score with configurable n-gram weights."""
+    try:
+        ref_tokens = word_tokenize(reference)
+        pred_tokens = word_tokenize(prediction)
+        
+        weights = (config.sb_ngram_weight_1, config.sb_ngram_weight_2, 
+                  config.sb_ngram_weight_3, config.sb_ngram_weight_4)
+        
+        smoothing_function = SmoothingFunction().method1
+        return sentence_bleu([ref_tokens], pred_tokens, weights=weights, smoothing_function=smoothing_function)
+    except Exception as e:
+        print(f"ERROR in SentenceBLEU calcualtion: {e}")
+        return 0.0
+
+
+def _get_exact_match(config: Config, reference: str, prediction: str) -> float:
+    """EM: 1.0 if identical, 0.0 otherwise."""
+    try:
+        # Normalize whitespace
+        ref_norm = re.sub(r'\s+', ' ', reference.strip())
+        pred_norm = re.sub(r'\s+', ' ', prediction.strip())
+        if ref_norm == pred_norm:
+            return 1.0
+        else:
+            return 0.0
+    except Exception as e:
+        print(f"ERROR in EM calcualtion: {e}")
+        return 0.0
+
+
+def _get_passk_prefix_match(config: Config, reference: str, prediction: str) -> float:
+    """ Passk Prefix Match: Exact match on first k lines."""
+    try:
+        k = config.passk_number_of_lines  
+        pred_lines = prediction.splitlines()[:k]
+        ref_lines = reference.splitlines()[:k]
+        return 1.0 if pred_lines == ref_lines else 0.0
+    except Exception as e:
+        print(f"ERROR in passk calcualtion: {e}")
+        return 0.0
+
+
+def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer,
+                       prefix: str, suffix: str, reference_middle: str) -> float:
+    """
+    FIM perplexity: How surprised the model is by the correct middle code.
+    Only scores the middle part (ignores prefix/suffix). Lower = model more confident
+    """
+    try:
+        # FIM prompt ending at <|fim_middle|>
+        fim_prompt = f"{config.fim_prefix_token}{prefix}{config.fim_suffix_token}{suffix}{config.fim_middle_token}"
+        full_sequence = fim_prompt + reference_middle
+        
+        fim_prompt_ids = tokenizer(fim_prompt, return_tensors="pt").input_ids.to(config.device)
+        middle_ids = tokenizer(reference_middle, return_tensors="pt").input_ids.to(config.device)
+
+        input_ids = torch.cat([fim_prompt_ids, middle_ids], dim=1)
+        labels = input_ids.clone()
+        prompt_len = fim_prompt_ids.shape[1]
+        labels[:, :prompt_len] = -100
+
+        with torch.no_grad():
+            outputs = model(input_ids=input_ids, labels=labels)
+            loss = outputs.loss
+        return math.exp(loss.item())
+    except Exception as e:
+        print(f"ERROR in PPL calcualtion: {e}")
+        return float('inf')
+
+
+def _generate_from_base_model_to_file(config: Config, tokenizer: AutoTokenizer) -> None:
+    print("--- Loading Base Model ---")
+    base_model = AutoModelForCausalLM.from_pretrained(
+        pretrained_model_name_or_path=config.model_name,
+        dtype=torch.float16,
+        device_map="auto"
+    )
+
+    print("--- Generating Base Model Responses ---")
+    with open(config.benchmark_dataset_path, "r") as benchmark_dataset_file, \
+         open(config.base_results_tmp_path, "w") as base_results_tmp_file:
+        for i, line in enumerate(benchmark_dataset_file):
+            example = json.loads(line)
+            prompt = (
+                f"{config.fim_prefix_token}{example['prefix']}"
+                f"{config.fim_suffix_token}{example['suffix']}"
+                f"{config.fim_middle_token}"
+            )
+            generated_text, full_text = _generate_code(config, base_model, tokenizer, prompt)
+
+            base_ppl = _get_fim_perplexity(config, base_model, tokenizer, example["prefix"], example["suffix"], example["reference_middle"])
+
+            results = {
+                "example_id": i,
+                "base_generated": generated_text,
+                "reference_middle": example["reference_middle"],
+                "base_ppl": base_ppl
+            }
+            json.dump(results, base_results_tmp_file)
+            base_results_tmp_file.write("\n")
+            if i % 100 == 0: print(f"Processed: {i}")
+
+    del base_model
+    _clear_hardware_cache(config)
+
+
+def _generate_from_lora_model_to_file(config: Config, user_args: argparse.Namespace, tokenizer: AutoTokenizer) -> None:
+    if user_args.checkpoint == "last":
+        checkpoint_path = get_last_checkpoint(config.trainer_output_dir_path)
+    else:
+        checkpoint_path = config.trainer_output_dir_path / user_args.checkpoint
+
+    print(f"--- Loading LoRA Checkpoint: {str(checkpoint_path)} ---")
+    base_model_for_lora = AutoModelForCausalLM.from_pretrained(
+        pretrained_model_name_or_path=config.model_name,
+        dtype=torch.float16,
+        device_map="auto"
+    )
+
+    lora_model = PeftModel.from_pretrained(
+        model=base_model_for_lora,
+        model_id=checkpoint_path,
+    )
+    print("--- Generating LoRA Model Responses and Comparing ---")
+    with open(config.benchmark_dataset_path, "r") as benchmark_dataset_file, \
+         open(config.base_results_tmp_path, "r") as base_results_tmp_file, \
+         open(config.comparison_results_path, "w") as comparison_results_file:
+
+        for i, (example_line, base_line) in enumerate(zip(benchmark_dataset_file, base_results_tmp_file)):
+            example = json.loads(example_line)
+            base_results = json.loads(base_line)
+
+            assert base_results["example_id"] == i  # sanity check
+
+            prompt = (
+                f"{config.fim_prefix_token}{example['prefix']}"
+                f"{config.fim_suffix_token}{example['suffix']}"
+                f"{config.fim_middle_token}"
+            )
+            lora_generated_text, lora_full_text = _generate_code(config, lora_model, tokenizer, prompt)
+
+            full_example = (
+                f"{config.fim_prefix_token}{example['prefix']}"
+                f"{config.fim_suffix_token}{example['suffix']}"
+                f"{config.fim_middle_token}{example['reference_middle']}"
+            )
+            
+
+            base_codebleu = _get_codebleu(config, example["reference_middle"], base_results["base_generated"])
+            lora_codebleu = _get_codebleu(config, example["reference_middle"], lora_generated_text)
+
+
+            base_em = _get_exact_match(config, example["reference_middle"], base_results["base_generated"])
+            lora_em = _get_exact_match(config, example["reference_middle"], lora_generated_text)
+
+            base_sentencebleu = _get_sentencebleu(config, example["reference_middle"], base_results["base_generated"])
+            lora_sentencebleu = _get_sentencebleu(config, example["reference_middle"], lora_generated_text)
+
+            base_passk_prefix = _get_passk_prefix_match(config, example["reference_middle"], base_results["base_generated"])
+            lora_passk_prefix = _get_passk_prefix_match(config, example["reference_middle"], lora_generated_text)
+
+            lora_ppl = _get_fim_perplexity(config, lora_model, tokenizer, example["prefix"], example["suffix"], example["reference_middle"])
+
+            result = {
+                "example_id": i,
+                "full_example": full_example,
+                "reference_middle": example["reference_middle"],
+                "base_generated": base_results["base_generated"],
+                "lora_generated": lora_generated_text,
+                "base_codebleu": base_codebleu,
+                "lora_codebleu": lora_codebleu,
+                "base_sentencebleu": base_sentencebleu,
+                "lora_sentencebleu": lora_sentencebleu,
+                "base_em": base_em,
+                "lora_em": lora_em,
+                "base_passk": base_passk_prefix,
+                "lora_passk": lora_passk_prefix,
+                "base_ppl": base_results["base_ppl"],
+                "lora_ppl": lora_ppl
+            }
+
+            # Write each result as one JSON line
+            json.dump(result, comparison_results_file)
+            comparison_results_file.write("\n")
+            if i % 100 == 0: print(f"Processed: {i}")
+
+    del lora_model
+    _clear_hardware_cache(config)
+
+
+def _plot_metric_stats_from_file(config: Config, score_name: str, plot_file: Path, higher_is_better: bool) -> None:
+    # Extract scores
+    base_scores = []
+    lora_scores = []
+    
+    with open(config.comparison_results_path, 'r') as f:
+        for line in f:
+            data = json.loads(line)
+            base_scores.append(data[f'base_{score_name}'])
+            lora_scores.append(data[f'lora_{score_name}'])
+    
+    if not base_scores:
+        print(f"No {score_name} results found.")
+        return
+    
+    # Stats
+    n_examples = len(base_scores)
+    avg_base = sum(base_scores) / n_examples
+    avg_lora = sum(lora_scores) / n_examples
+    
+    if higher_is_better:
+        improvement = avg_lora - avg_base
+    else:
+        improvement = avg_base - avg_lora  # lower is better
+
+    print(f"\n=== {score_name.upper()} SUMMARY ===")
+    print(f"Examples: {n_examples}")
+    print(f"Base avg: {avg_base:.3f}")
+    print(f"LoRA avg: {avg_lora:.3f}")
+    print(f"Improvement (signed): {improvement:+.3f}")
+    
+    # 3-panel plot
+    plt.figure(figsize=(15, 4))
+    
+    # 1: Averages
+    plt.subplot(1, 3, 1)
+    plt.bar(['Base', 'LoRA'], [avg_base, avg_lora])
+    plt.ylabel(f'{score_name.upper()} Score')
+    plt.title('Average Scores')
+    
+    # 2: Improvement histogram
+    if higher_is_better:
+        improvements = [l - b for l, b in zip(lora_scores, base_scores)]
+    else:
+        improvements = [b - l for l, b in zip(lora_scores, base_scores)]  # Invert for PPL
+    plt.subplot(1, 3, 2)
+    plt.hist(improvements, bins=30, color='green', alpha=0.7, edgecolor='black')
+    plt.axvline(0, color='red', linestyle='--', linewidth=2)
+    plt.xlabel('Improvement (LoRA - Base)')
+    plt.ylabel('Examples')
+    plt.title('Improvement Distribution')
+    
+    # 3: Score distributions
+    plt.subplot(1, 3, 3)
+    plt.hist(base_scores, bins=30, alpha=0.7, label='Base', color='blue')
+    plt.hist(lora_scores, bins=30, alpha=0.7, label='LoRA', color='orange')
+    plt.xlabel(f'{score_name.upper()} Score')
+    plt.ylabel('Examples')
+    plt.legend()
+    plt.title('Score Distributions')
+    
+    plt.tight_layout()
+    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
+    plt.show()
+    print(f"Plot saved: {plot_file}")
+
+
+def main():
+    nltk.download('punkt', quiet=True)  # Downloads punkt automatically
+    config = Config()
+    user_args = _parse_args()
+
+    if config.benchmark_dataset_path.exists():
+        choice = input(f"Benchmark file '{config.benchmark_dataset_path}' already exists. Overwrite? [y/N]: ").lower()
+        if choice == 'y':
+            create_benchmark_dataset(
+                input_dataset_path=config.input_dataset_path, 
+                benchmark_dataset_path=config.benchmark_dataset_path, 
+                sample_size=config.input_sample_size,
+                min_fim_middle_chars=config.min_fim_middle_chars 
+            )
+        else:
+            print(f"Proceeding with existing file '{config.benchmark_dataset_path}'...")
+    else:
+        create_benchmark_dataset(
+            input_dataset_path=config.input_dataset_path, 
+            benchmark_dataset_path=config.benchmark_dataset_path, 
+            sample_size=config.input_sample_size,
+            min_fim_middle_chars=config.min_fim_middle_chars
+        )
+
+    
+    if user_args.plot_only == False:  # If plot_only args is not specified 
+        tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+        tokenizer.pad_token = config.fim_pad_token
+        tokenizer.padding_side = "right"
+        _generate_from_base_model_to_file(config, tokenizer)
+        _generate_from_lora_model_to_file(config, user_args, tokenizer)
+
+    _plot_metric_stats_from_file(config, config.sb_score_name, config.sb_plot_file, higher_is_better=True)
+    _plot_metric_stats_from_file(config, config.cb_score_name, config.cb_plot_file, higher_is_better=True)
+    _plot_metric_stats_from_file(config, config.em_score_name, config.em_plot_file, higher_is_better=True)
+    _plot_metric_stats_from_file(config, config.passk_prefix_name, config.passk_prefix_plot_file, higher_is_better=True)
+    _plot_metric_stats_from_file(config, config.perplexity_name, config.perplexity_plot_file, higher_is_better=False)
+
+
+if __name__ == "__main__":
+    main()
