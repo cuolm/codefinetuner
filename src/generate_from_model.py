@@ -27,17 +27,17 @@ class Config:
     fim_suffix_token: str = "<|fim_suffix|>"
     fim_middle_token: str = "<|fim_middle|>"
     fim_pad_token: str = "<|fim_pad|>"
-    input_sample_size: int = 2000 
-    min_fim_middle_chars: int = 10  
+    input_sample_size: int = 50 
+    min_fim_middle_chars: int = 50  
 
     gen_max_new_tokens: int = 128 
-    gen_do_sample: bool = False  # Note: if set to False temperature and top_p have no effect
+    gen_do_sample: bool = False  # note: if set to False temperature and top_p have no effect
     gen_temperature: float = 0.7
     gen_top_p: float = 0.95
 
     project_root_path: Path = field(init=False)
     trainer_output_dir_path: Path = field(init=False)
-    input_dataset_path: Path = field(init=False)  # Tokenized dataset under /datasets e.g. test_dataset.jsonl
+    input_dataset_path: Path = field(init=False)  # tokenized dataset under /datasets e.g. test_dataset.jsonl
     benchmark_dataset_path: Path = field(init=False)
     base_results_tmp_path: Path = field(init=False)
     comparison_results_path: Path = field(init=False)
@@ -45,16 +45,16 @@ class Config:
     device: str = field(init=False)
 
     # CodeBLEU weights (must sum to 1.0)
-    # See: https://arxiv.org/pdf/2009.10297  Section 4.4 for parameter suggestions 0.1, 0.1, 0.4, 0.4
+    # see: https://arxiv.org/pdf/2009.10297  Section 4.4 for parameter suggestions 0.1, 0.1, 0.4, 0.4
     cb_language: str = "c"
     cb_score_name: str = "codebleu"
-    cb_ngram_weight: float = 0.1         # Token-level overlap (standard BLEU)
-    cb_weighted_ngram_weight: float = 0.1 # Keyword-level overlap (importance-weighted)
-    cb_syntax_ast_weight: float = 0.4     # Structural correctness (Abstract Syntax Tree)
-    cb_dataflow_weight: float = 0.4       # Logic consistency (Variable dependency graph)
+    cb_ngram_weight: float = 0.1         # token-level overlap (standard BLEU)
+    cb_weighted_ngram_weight: float = 0.1 # keyword-level overlap (importance-weighted)
+    cb_syntax_ast_weight: float = 0.4     # structural correctness (Abstract Syntax Tree)
+    cb_dataflow_weight: float = 0.4       # logic consistency (Variable dependency graph)
     cb_plot_file: Path = field(init=False)
 
-    # Sentence-BLEU weights (must sum to 1.0)
+    # sentence-BLEU weights (must sum to 1.0)
     sb_score_name: str = "sentencebleu"
     sb_ngram_weight_1: float = 0.25  # 1-gram
     sb_ngram_weight_2: float = 0.25  # 2-gram  
@@ -157,6 +157,17 @@ def _ensure_benchmark_dataset(config: Config) -> None:
         logger.info(f"Created new benchmark dataset '{config.benchmark_dataset_path}' with '{dataset_len}' examples")
 
 
+def _ensure_directories_exist(config: Config) -> None:
+    """Create all required output directories."""
+    directories = [
+        config.base_results_tmp_path.parent,
+        config.comparison_results_path.parent,
+    ]
+    for dir_path in directories:
+        dir_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Ensured directory exists: {dir_path}")
+
+
 def _generate_code(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, prompt: str) -> str:
     model.eval()
     input_tokens_dict = tokenizer(prompt, return_tensors="pt").to(config.device)
@@ -203,7 +214,7 @@ def _get_codebleu(config: Config, reference: str, prediction: str) -> float:
         result = codebleu_score([reference], [prediction], lang=config.cb_language, weights=codebleu_algorithm_weights)
         return result['codebleu']
     except Exception as e:
-        logger.excpetion(f"ERROR in CodeBLEU calcualtion: {e}")
+        logger.exception(f"ERROR in CodeBLEU calcualtion: {e}")
         return 0.0
 
 
@@ -280,11 +291,20 @@ def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM, tokenizer: 
 
 def _generate_from_base_model_to_file(config: Config, tokenizer: AutoTokenizer) -> None:
     logger.info("--- Loading Base Model ---")
-    base_model = AutoModelForCausalLM.from_pretrained(
-        pretrained_model_name_or_path=config.model_name,
-        dtype=torch.float16,
-        device_map="auto"
-    )
+
+    if config.device == "cuda":
+        base_model = AutoModelForCausalLM.from_pretrained(
+            pretrained_model_name_or_path=config.model_name,
+            dtype=torch.float16,
+            device_map="auto",
+            low_cpu_mem_usage=True
+        )
+    else:
+        base_model = AutoModelForCausalLM.from_pretrained(
+            pretrained_model_name_or_path=config.model_name,
+            dtype=torch.float16,
+            low_cpu_mem_usage=True
+        ).to(config.device)
 
     logger.info("--- Generating Base Model Responses ---")
     with open(config.benchmark_dataset_path, "r") as benchmark_dataset_file, \
@@ -322,11 +342,19 @@ def _generate_from_lora_model_to_file(config: Config, user_args: argparse.Namesp
         checkpoint_path = config.trainer_output_dir_path / user_args.checkpoint
 
     logger.info(f"--- Loading LoRA Checkpoint: {str(checkpoint_path)} ---")
-    base_model_for_lora = AutoModelForCausalLM.from_pretrained(
-        pretrained_model_name_or_path=config.model_name,
-        dtype=torch.float16,
-        device_map="auto"
-    )
+    if config.device == "cuda":
+        base_model_for_lora = AutoModelForCausalLM.from_pretrained(
+            pretrained_model_name_or_path=config.model_name,
+            dtype=torch.float16,
+            device_map="auto",
+            low_cpu_mem_usage=True
+        )
+    else:
+        base_model_for_lora = AutoModelForCausalLM.from_pretrained(
+            pretrained_model_name_or_path=config.model_name,
+            dtype=torch.float16,
+            low_cpu_mem_usage=True
+        ).to(config.device)
 
     lora_model = PeftModel.from_pretrained(
         model=base_model_for_lora,
@@ -348,7 +376,7 @@ def _generate_from_lora_model_to_file(config: Config, user_args: argparse.Namesp
                 f"{config.fim_suffix_token}{benchmark_example['suffix']}"
                 f"{config.fim_middle_token}"
             )
-            lora_generated_midle = _generate_code(config, lora_model, tokenizer, prompt)
+            lora_generated_middle = _generate_code(config, lora_model, tokenizer, prompt)
 
             full_example = (
                 f"{config.fim_prefix_token}{benchmark_example['prefix']}"
@@ -468,6 +496,8 @@ def _plot_metric_stats_from_file(config: Config, score_name: str, plot_file: Pat
 
 def main():
     nltk.download('punkt', quiet=True)  # downloads punkt automatically
+    nltk.download('punkt_tab', quiet=True)
+
     config = Config()
     user_args = _parse_args()
 
@@ -477,6 +507,8 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained(config.model_name)
         tokenizer.pad_token = config.fim_pad_token
         tokenizer.padding_side = "right"
+
+        _ensure_directories_exist(config)
         _generate_from_base_model_to_file(config, tokenizer)
         _generate_from_lora_model_to_file(config, user_args, tokenizer)
 
