@@ -26,7 +26,7 @@ class Config:
     fim_suffix_token: str = "<|fim_suffix|>"
     fim_middle_token: str = "<|fim_middle|>"
     fim_pad_token: str = "<|fim_pad|>"
-    input_sample_size: int = 500 
+    input_sample_size: int = 2 
     min_fim_middle_chars: int = 0  
 
     gen_max_new_tokens: int = 128 
@@ -64,9 +64,9 @@ class Config:
     em_score_name: str = "em"
     em_plot_file: Path = field(init=False)
 
-    passk_prefix_name: str = "passk"
-    passk_number_of_lines: int = 2  # 5 is standard production value (Sourcegraph, Cursor IDE)
-    passk_prefix_plot_file: Path = field(init=False)
+    lm_score_name: str = "lm"
+    lm_number_of_lines: int = 2  # 5 is standard production value (Sourcegraph, Cursor IDE)
+    lm_plot_file: Path = field(init=False)
 
     perplexity_name: str = "ppl"
     perplexity_plot_file: Path = field(init=False)
@@ -93,7 +93,7 @@ class Config:
         self.cb_plot_file = self.project_root_path / "benchmarks" / "results" / "codebleu_plot.png"
         self.sb_plot_file = self.project_root_path / "benchmarks" / "results" / "sentencebleu_plot.png"
         self.em_plot_file = self.project_root_path / "benchmarks" / "results" / "em_plot.png"
-        self.passk_prefix_plot_file = self.project_root_path / "benchmarks" / "results" / "passk_prefix_plot.png"
+        self.lm_plot_file = self.project_root_path / "benchmarks" / "results" / "lm_plot.png"
         self.perplexity_plot_file = self.project_root_path / "benchmarks" / "results" / "perplexity_plot.png"
 
 
@@ -277,57 +277,83 @@ def _get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
 
 
 def _get_exact_match(config: Config, reference: str, prediction: str) -> float:
-    """EM: 1.0 if identical, 0.0 otherwise."""
+    """EM: 1.0 if identical, 0.0 otherwise. Collapese all whitespaces."""
     try:
-        # Normalize whitespace
+        # re.sub(r'\s+', ' ', text.strip()): Collapses whitespace to compare logic regardless of formatting.
         ref_norm = re.sub(r'\s+', ' ', reference.strip())
         pred_norm = re.sub(r'\s+', ' ', prediction.strip())
+        
         if ref_norm == pred_norm:
             return 1.0
         else:
             return 0.0
     except Exception as e:
-        logger.exception(f"ERROR in EM calcualtion: {e}")
+        logger.exception(f"ERROR in EM calculation: {e}")
         return 0.0
 
 
-def _get_passk_prefix_match(config: Config, reference: str, prediction: str) -> float:
-    """ Passk Prefix Match: Exact match on first k lines."""
+def _get_line_match(config: Config, reference: str, prediction: str) -> float:
+    """Check if the first n lines match, ignoring trailing whitespace."""
     try:
-        k = config.passk_number_of_lines  
-        pred_lines = prediction.splitlines()[:k]
-        ref_lines = reference.splitlines()[:k]
-        return 1.0 if pred_lines == ref_lines else 0.0
+        n = config.lm_number_of_lines
+
+        # line.rstrip(): Removes trailing whitespace while preserving leading indentation.
+        ref_lines_stripped = []
+        for line in reference.splitlines()[:n]:
+            ref_lines_stripped.append(line.rstrip())
+
+        pred_lines_stripped = []
+        for line in prediction.splitlines()[:n]:
+            pred_lines_stripped.append(line.rstrip())
+
+        # Ensure both lists have the required number of lines
+        if len(pred_lines_stripped) < n or len(ref_lines_stripped) < n:
+            return 0.0
+
+        if pred_lines_stripped == ref_lines_stripped:
+            return 1.0
+        else:
+            return 0.0
     except Exception as e:
-        logger.exception(f"ERROR in passk calcualtion: {e}")
+        logger.exception(f"Error in line match: {e}")
         return 0.0
+
 
 
 def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer,
                        prefix: str, suffix: str, reference_middle: str) -> float:
     """
-    FIM perplexity: How surprised the model is by the correct middle code.
-    Only scores the middle part (ignores prefix/suffix). Lower = model more confident
+    FIM perplexity: Measures model confidence in the reference middle code.
+    (How surprised is the model by the reference middle code).
+    Lower perplexity indicates higher confidence. PPL = exp(loss).
     """
     try:
-        # FIM prompt ending at <|fim_middle|>
-        fim_prompt = f"{config.fim_prefix_token}{prefix}{config.fim_suffix_token}{suffix}{config.fim_middle_token}"
-        full_sequence = fim_prompt + reference_middle
+        fim_prompt = (
+            f"{config.fim_prefix_token}{prefix}"
+            f"{config.fim_suffix_token}{suffix}"
+            f"{config.fim_middle_token}"
+        )
         
-        fim_prompt_ids = tokenizer(fim_prompt, return_tensors="pt").input_ids.to(config.device)
-        middle_ids = tokenizer(reference_middle, return_tensors="pt").input_ids.to(config.device)
+        prompt_tokenized = tokenizer(fim_prompt, return_tensors="pt")
+        middle_tokenized = tokenizer(reference_middle, return_tensors="pt")
 
-        input_ids = torch.cat([fim_prompt_ids, middle_ids], dim=1)
+        prompt_ids = prompt_tokenized.input_ids.to(config.device)
+        middle_ids = middle_tokenized.input_ids.to(config.device)
+
+        input_ids = torch.cat([prompt_ids, middle_ids], dim=1)
+        
         labels = input_ids.clone()
-        prompt_len = fim_prompt_ids.shape[1]
+        prompt_len = prompt_ids.shape[1]
         labels[:, :prompt_len] = -100
 
         with torch.inference_mode():
             outputs = model(input_ids=input_ids, labels=labels)
             loss = outputs.loss
+            
         return math.exp(loss.item())
+        
     except Exception as e:
-        logger.exception(f"ERROR in PPL calcualtion: {e}")
+        logger.exception(f"ERROR in PPL calculation: {e}")
         return float('inf')
 
 
@@ -436,8 +462,8 @@ def _generate_from_lora_model_to_file(config: Config, user_args: argparse.Namesp
             base_sentencebleu = _get_sentencebleu(config, benchmark_example["reference_middle"], base_results["base_generated_middle"])
             lora_sentencebleu = _get_sentencebleu(config, benchmark_example["reference_middle"], lora_generated_middle)
 
-            base_passk_prefix = _get_passk_prefix_match(config, benchmark_example["reference_middle"], base_results["base_generated_middle"])
-            lora_passk_prefix = _get_passk_prefix_match(config, benchmark_example["reference_middle"], lora_generated_middle)
+            base_lm = _get_line_match(config, benchmark_example["reference_middle"], base_results["base_generated_middle"])
+            lora_lm = _get_line_match(config, benchmark_example["reference_middle"], lora_generated_middle)
 
             lora_ppl = _get_fim_perplexity(config, lora_model, tokenizer, benchmark_example["prefix"], benchmark_example["suffix"], benchmark_example["reference_middle"])
 
@@ -454,8 +480,8 @@ def _generate_from_lora_model_to_file(config: Config, user_args: argparse.Namesp
                 "lora_sentencebleu": lora_sentencebleu,
                 "base_em": base_em,
                 "lora_em": lora_em,
-                "base_passk": base_passk_prefix,
-                "lora_passk": lora_passk_prefix,
+                "base_lm": base_lm,
+                "lora_lm": lora_lm,
                 "base_ppl": base_results["base_ppl"],
                 "lora_ppl": lora_ppl
             }
@@ -562,7 +588,7 @@ def main():
     _plot_metric_stats_from_file(config, config.sb_score_name, config.sb_plot_file, higher_is_better=True)
     _plot_metric_stats_from_file(config, config.cb_score_name, config.cb_plot_file, higher_is_better=True)
     _plot_metric_stats_from_file(config, config.em_score_name, config.em_plot_file, higher_is_better=True)
-    _plot_metric_stats_from_file(config, config.passk_prefix_name, config.passk_prefix_plot_file, higher_is_better=True)
+    _plot_metric_stats_from_file(config, config.lm_score_name, config.lm_plot_file, higher_is_better=True)
     _plot_metric_stats_from_file(config, config.perplexity_name, config.perplexity_plot_file, higher_is_better=False)
 
 
