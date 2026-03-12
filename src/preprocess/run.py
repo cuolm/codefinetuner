@@ -95,28 +95,31 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _clear_existing_datasets(config: Config) -> None:
+def _clear_existing_datasets(config: Config, force_delete_datasets: bool) -> None:
     dataset_files = [config.train_path, config.eval_path, config.test_path]
     
-    found_existing = False
+    existing_dataset_files = []
     for file in dataset_files:
         if file.exists():
             logger.info(f"Found existing dataset: {file}")
-            found_existing = True
+            existing_dataset_files.append(file)
 
-    if not found_existing:
-        return
+    if not existing_dataset_files:
+        return True
 
-    confirm = input("Found existing files. Delete and start fresh? (y/n): ").lower()
-
-    if confirm == 'y':
-        for f in dataset_files:
-            if f.exists():
-                f.unlink()
-        logger.info("Deleted existing datasets.")
-    else:
-        logger.info("Aborted by user. Existing datasets preserved.")
-        exit()
+    if not force_delete_datasets:
+        answer = input("Found existing files. Delete and start fresh? (y/n): ").strip().lower()
+        if answer != "y":
+            logger.info("Aborted by user. Existing datasets preserved.")
+            return False
+    for file in existing_dataset_files: 
+        try:
+            file.unlink()
+            logger.info("Deleted dataset file: %s", file)
+        except OSError as exc:
+            logger.error("Failed to delete %s: %s", file, exc)
+            return False
+    return True
 
 
 def main() -> None:
@@ -145,7 +148,8 @@ def main() -> None:
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     tokenizer.pad_token = config.fim_pad_token  # use FIM pad token for padding instead of default pad token
 
-    _clear_existing_datasets(config)
+    if not _clear_existing_datasets(config, user_args.force_delete_datasets):
+        return
 
     if user_args.split_mode == "auto":
         logger.info("Using auto-generated dataset split.")
