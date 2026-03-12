@@ -10,7 +10,7 @@ from .processor import (create_fim_examples, estimate_bytes_per_token_ratio,
                         tokenize_and_save_fim_examples)
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("src.preprocess.run")
 
 
 def _setup_logger(log_level: str) -> None:
@@ -29,10 +29,12 @@ def _setup_logger(log_level: str) -> None:
                 "formatter": "standard",
             }
         },
-        "root": {
-            "handlers": ["stderr_handler"],
-            "level": log_level,
-            "propagate": True
+        "loggers": {
+            "src.preprocess": {  # package logger instead of root
+                "handlers": ["stderr_handler"],
+                "level": log_level,
+                "propagate": False,
+            }
         }
     }
     logging.config.dictConfig(config)
@@ -45,6 +47,18 @@ def _normalize_extension(ext: str) -> str:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Preprocess code dataset for FIM fine-tuning.")
+    parser.add_argument(
+        "--force-delete-datasets",
+        action="store_true",
+        help="Delete existing datasets without confirmation.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging level.",
+    )
     parser.add_argument(
         "--extensions",
         nargs="+",
@@ -106,8 +120,9 @@ def _clear_existing_datasets(config: Config) -> None:
 
 
 def main() -> None:
-    _setup_logger("INFO")
     user_args = _parse_args()
+    _setup_logger(user_args.log_level)
+
     config = Config(
         source_files_language=user_args.source_files_language,
         extensions=user_args.extensions,
