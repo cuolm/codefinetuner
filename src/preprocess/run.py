@@ -154,13 +154,9 @@ def main() -> None:
     if user_args.split_mode == "auto":
         logger.info("Using auto-generated dataset split.")
         train_code_blocks_iter, eval_code_blocks_iter, test_code_blocks_iter = get_code_blocks_from_auto_split(config) 
-    elif user_args.split_mode == "manual":
+    else: # user_args.split_mode == "manual":
         logger.info("Using manual dataset split from directories.")
         train_code_blocks_iter, eval_code_blocks_iter, test_code_blocks_iter = get_code_blocks_from_manual_split(config) 
-    else:
-        err_msg = f"Unknown split mode: {user_args.split_mode}"
-        logger.error(err_msg)
-        raise ValueError(err_msg) 
 
     bytes_per_token_ratio = estimate_bytes_per_token_ratio(config, tokenizer, number_of_code_blocks=20000)
     logger.info(f"Estimated bytes_per_token_ratio: {bytes_per_token_ratio}")
