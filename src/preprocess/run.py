@@ -3,6 +3,7 @@ import logging.config
 from pathlib import Path
 
 from transformers import AutoTokenizer
+import tree_sitter as ts
 
 from .config import Config
 from .extractor import get_custom_tree_sitter_parser, get_tree_sitter_language_pack_parser, get_code_blocks_from_auto_split, get_code_blocks_from_manual_split
@@ -148,25 +149,13 @@ def main() -> None:
     user_args = _parse_args()
     _setup_logger(user_args.log_level)
 
-    config = Config(
+    config = Config.create(
         source_files_language=user_args.source_files_language,
         extensions=user_args.extensions,
         split_mode=user_args.split_mode,
         raw_data_path=user_args.raw_data_path,
         tree_sitter_parser_path = user_args.tree_sitter_parser_path
-
     )
-
-    if user_args.tree_sitter_parser_path:
-        config.tree_sitter_parser = get_custom_tree_sitter_parser(config.tree_sitter_parser_path, config.source_files_language)
-    else:
-        config.tree_sitter_parser = get_tree_sitter_language_pack_parser(config.source_files_language)
-    
-    if config.tree_sitter_parser is None:
-        err_msg = "Tree-sitter parser not initialized" 
-        logger.error(err_msg)
-        raise RuntimeError(err_msg)
-
 
     if not _clear_existing_datasets(config, user_args.force_delete_datasets):
         return
