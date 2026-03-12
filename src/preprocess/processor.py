@@ -7,7 +7,7 @@ from transformers import AutoTokenizer
 import tree_sitter as ts
 
 from .config import Config
-from .extractor import _auto_create_split_paths, _get_code_blocks_from_paths
+from .extractor import auto_create_split_paths, get_code_blocks_from_paths
 
 
 logger = logging.getLogger("src.preprocess.processor")
@@ -53,11 +53,11 @@ def estimate_bytes_per_token_ratio(config: Config, tokenizer: AutoTokenizer, num
     except e.g. specific string literals (printf("π ≈ 3.14159\n");). 
     ASCII is a subset of UTF-8, so len(bytes) ≈ character count.
     """
-    train_file_paths, _, _ = _auto_create_split_paths(config)  # no matter the split mode always use the auto split
+    train_file_paths, _, _ = auto_create_split_paths(config)  # no matter the split mode always use the auto split
     total_bytes = 0
     total_tokens = 0
     i = 0
-    block_iter = _get_code_blocks_from_paths(config, train_file_paths)
+    block_iter = get_code_blocks_from_paths(config, train_file_paths)
     for block in block_iter:
         total_bytes += len(block[0])  # bytes from code block
         tokenized_block = tokenizer(block[0].decode('utf-8')).tokens()
@@ -79,8 +79,7 @@ def _generate_fim_examples_from_code_block(config: Config, code_utf8: bytes, sub
     eos_token_utf8 = config.eos_token.encode('utf8')
     
     num_of_subblocks = len(subblock_ranges)
-    num_of_fim_examples = 0
-    num_of_fim_examples = max(1, int(num_of_subblocks * config.fim_examples_per_subblock_ratio))  # make sure to always generate at least one fim example
+    num_of_fim_examples = max(1, int(num_of_subblocks * config.fim_examples_per_subblock_ratio))  
     unique_random_subblock_indices = config.rng.choice(len(subblock_ranges), size=num_of_fim_examples, replace=False)
 
     fim_examples = [] 

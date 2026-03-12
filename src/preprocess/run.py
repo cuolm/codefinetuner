@@ -6,9 +6,8 @@ from transformers import AutoTokenizer
 import tree_sitter as ts
 
 from .config import Config
-from .extractor import get_custom_tree_sitter_parser, get_tree_sitter_language_pack_parser, get_code_blocks_from_auto_split, get_code_blocks_from_manual_split
-from .processor import (create_fim_examples, estimate_bytes_per_token_ratio,
-                        tokenize_and_save_fim_examples)
+from .extractor import get_code_blocks_from_auto_split, get_code_blocks_from_manual_split
+from .processor import create_fim_examples, estimate_bytes_per_token_ratio, tokenize_and_save_fim_examples
 
 
 logger = logging.getLogger("src.preprocess.run")
