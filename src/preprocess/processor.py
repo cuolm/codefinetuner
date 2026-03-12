@@ -72,7 +72,7 @@ def estimate_bytes_per_token_ratio(config: Config, tokenizer: AutoTokenizer, num
     return bytes_per_token_ratio 
 
 
-def _generate_fim_examples_from_code_block(config: Config, code_utf8: bytes, subblock_ranges: list[Tuple[int, int]], bytes_per_token_ratio: int) -> list[bytes]:
+def _generate_fim_examples_from_code_block(config: Config, code_utf8: bytes, subblock_ranges: list[Tuple[int, int]], bytes_per_token_ratio: float) -> list[bytes]:
     fim_prefix_token_utf8 = config.fim_prefix_token.encode('utf8')
     fim_middle_token_utf8 = config.fim_middle_token.encode('utf8')
     fim_suffix_token_utf8 = config.fim_suffix_token.encode('utf8')
@@ -110,7 +110,7 @@ def _generate_fim_examples_from_code_block(config: Config, code_utf8: bytes, sub
     return fim_examples
 
 
-def create_fim_examples(config: Config, code_blocks_iter: Iterator[Tuple[bytes, ts.Node]], bytes_per_token_ratio: int) -> Iterator[bytes]:
+def create_fim_examples(config: Config, code_blocks_iter: Iterator[Tuple[bytes, ts.Node]], bytes_per_token_ratio: float) -> Iterator[bytes]:
     """
     Generator function that takes a generator iterator of code blocks as input, 
     generates FIM examples from each code block and returns a generator iterator 
