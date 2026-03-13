@@ -49,20 +49,17 @@ class FIMDataCollator:
         }
 
         return examples_batch
+    
 
-
-def train_and_save_lora_model(
+def train_lora_model(
         config: Config,
-        lora_model: AutoModelForCausalLM,
+        lora_model: PeftModel,
+        tokenizer: AutoTokenizer,
         train_dataset: IterableDataset,
         eval_dataset: IterableDataset,
         user_args: argparse.Namespace
 ) -> List: 
     logger.info(f"Starting training: {config.trainer_max_steps} steps on {config.device}, batch_size={config.trainer_per_device_train_batch_size}") 
-
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-    tokenizer.pad_token = config.fim_pad_token
-    tokenizer.padding_side = "right"
 
     if config.model_dtype == torch.bfloat16:
         trainer_bf16 = True
@@ -73,7 +70,6 @@ def train_and_save_lora_model(
     else:
         trainer_bf16 = False 
         trainer_fp16 = False 
-
 
     training_args = TrainingArguments(
         output_dir=config.trainer_output_dir_path,
@@ -122,34 +118,35 @@ def train_and_save_lora_model(
     lora_model.save_pretrained(config.lora_adapter_path) # save lora adapter only
     log_history = trainer.state.log_history
 
-    if config.device == "cuda":
-        # clear 4-bit model from VRAM to make room for the FP16 base model
-        del trainer  # clear trainer references
-        del lora_model  # remove model reference
+    del trainer
+    del lora_model
+    return log_history
 
-        gc.collect()  # force garbage collection
 
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()  # wait for gpu
-            torch.cuda.empty_cache()  # clear gpu cache
-        
-        # ensure offload folder for merging exists before loading the model
-        config.trainer_model_merge_offload_folder_path.mkdir(parents=True, exist_ok=True)
+def merge_lora_and_save(config: Config, tokenizer: AutoTokenizer) -> None:
+    gc.collect()  # force garbage collection
 
-        # load fresh base model
-        base_model = AutoModelForCausalLM.from_pretrained(
-            pretrained_model_name_or_path=config.model_name,
-            dtype=config.model_dtype,
-            device_map="auto",
-            offload_folder=str(config.trainer_model_merge_offload_folder_path),  # offload model layers to disk during loading to prevent RAM (OOM) crashes 
-            low_cpu_mem_usage=True
-        )
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()  # wait for gpu
+        torch.cuda.empty_cache()  # clear gpu cache
+    
+    # ensure offload folder for merging exists before loading the model
+    config.trainer_model_merge_offload_folder_path.mkdir(parents=True, exist_ok=True)
 
-        lora_model = PeftModel.from_pretrained(
-            base_model, 
-            config.lora_adapter_path,
-            offload_folder=str(config.trainer_model_merge_offload_folder_path)
-        )
+    # load fresh base model
+    base_model = AutoModelForCausalLM.from_pretrained(
+        pretrained_model_name_or_path=config.model_name,
+        dtype=config.model_dtype,
+        device_map="auto",
+        offload_folder=str(config.trainer_model_merge_offload_folder_path),  # offload model layers to disk during loading to prevent RAM (OOM) crashes 
+        low_cpu_mem_usage=True
+    )
+
+    lora_model = PeftModel.from_pretrained(
+        base_model, 
+        config.lora_adapter_path,
+        offload_folder=str(config.trainer_model_merge_offload_folder_path)
+    )
 
     # merge lora adapter into base model and save it with the tokenizer of the model
     merged_model= lora_model.merge_and_unload() 
@@ -160,8 +157,6 @@ def train_and_save_lora_model(
     # clean up offload folder
     if config.trainer_model_merge_offload_folder_path.exists():
         shutil.rmtree(config.trainer_model_merge_offload_folder_path)
-
-    return log_history 
 
 
 def save_log(config: Config, log_history: List) -> None:
@@ -208,4 +203,4 @@ def plot_loss(config: Config) -> None:
     plt.legend()
     plt.grid(True)
     plt.savefig(Path(config.trainer_output_dir_path) / "loss_plot.png")
-    plt.show()
+    plt.close()

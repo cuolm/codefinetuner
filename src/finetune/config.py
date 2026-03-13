@@ -15,6 +15,7 @@ class Config:
     # --- Model Settings ---
     model_name: str = "Qwen/Qwen2.5-Coder-1.5B"
     model_attn_implementation: str = "sdpa"  # sdpa = built-in PyTorch implementation of scaled dot product attention, imporves performance and memory efficiency
+    model_dtype: torch.dtype = field(init=False)
     fim_pad_token: str = "<|fim_pad|>"
 
     # --- LoRA Settings ---
@@ -57,9 +58,6 @@ class Config:
 
     # --- Hardware Configuration --- 
     device: str = field(init=False)
-    model_dtype: torch.dtype = field(init=False)
-    trainer_bf16: bool = field(init=False)  # if set to true fp16 needs to be set to false 
-    trainer_fp16: bool = field(init=False)  # if set to true bf16 needs to be set to false
     
     # --- Path Management ---
     project_root_path: Path = field(init=False)

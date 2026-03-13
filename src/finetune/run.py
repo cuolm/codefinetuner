@@ -5,10 +5,11 @@ import sys
 from typing import Tuple
 
 from datasets import Features, IterableDataset, Sequence, Value, load_dataset
+from transformers import AutoTokenizer
 
 from .config import Config
 from .model import load_and_configure_lora_model
-from .train import plot_loss, save_log, train_and_save_lora_model
+from .train import plot_loss, save_log, train_lora_model, merge_lora_and_save
 
 
 logger = logging.getLogger("src.finetune.run")
@@ -99,7 +100,13 @@ def main() -> None:
     lora_model = load_and_configure_lora_model(config)
     lora_model.print_trainable_parameters()
 
-    log_history = train_and_save_lora_model(config, lora_model, train_dataset, eval_dataset, user_args)
+    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
+    tokenizer.pad_token = config.fim_pad_token
+    tokenizer.padding_side = "right"
+
+    log_history = train_lora_model(config, lora_model, tokenizer, train_dataset, eval_dataset, user_args)
+    merge_lora_and_save(config, tokenizer)
+    # log_history = train_and_save_lora_model(config, lora_model, train_dataset, eval_dataset, user_args)
     save_log(config, log_history)
 
     plot_loss(config)
