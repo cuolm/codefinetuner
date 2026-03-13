@@ -8,11 +8,12 @@ from .config import Config
 
 
 def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:
+    model_dtype = torch.bfloat16 if config.trainer_bf16 else torch.float16
     if config.device == "cuda":
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",  # quantization type fp4 or nf4"
-            bnb_4bit_compute_type=torch.bfloat16,
+            bnb_4bit_compute_type=model_dtype,
             bnb_4bit_use_double_quant=True,
         )
         model = AutoModelForCausalLM.from_pretrained(
@@ -25,12 +26,16 @@ def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:
     elif config.device == "mps":
         model = AutoModelForCausalLM.from_pretrained(
             pretrained_model_name_or_path=config.model_name,
-            torch_dtype=torch.float16  # reduces weights from 32-bit to 16-bit float.
+            torch_dtype=model_dtype  # reduces weights from 32-bit to 16-bit float.
         ).to("mps")
     else:
         model = AutoModelForCausalLM.from_pretrained(
             pretrained_model_name_or_path=config.model_name,
         ).to("cpu")
+    
+    # forces the input to require gradients, ensuring the backward pass graph stays connected when using frozen base models with gradient checkpointing
+    if config.trainer_gradient_checkpointing:
+        model.enable_input_require_grads()
 
     lora_config = LoraConfig(
         lora_alpha=config.lora_alpha, 
