@@ -1,14 +1,14 @@
-import logging.config
 import argparse
+import logging.config
 import shutil
-import sys        
+import sys
 from typing import Tuple
-from datasets import Features, Sequence, Value, IterableDataset, load_dataset
 
+from datasets import Features, IterableDataset, Sequence, Value, load_dataset
 
 from .config import Config
 from .model import load_and_configure_lora_model
-from .train import train_and_save_lora_model, save_log, plot_loss
+from .train import plot_loss, save_log, train_and_save_lora_model
 
 
 logger = logging.getLogger("src.finetune.run")

@@ -1,8 +1,9 @@
 import math
-import torch
 from dataclasses import dataclass, field
-from typing import List
 from pathlib import Path
+from typing import List
+
+import torch
 
 
 @dataclass
@@ -91,3 +92,4 @@ class Config:
         self.trainer_max_steps = math.ceil(self.train_dataset_length /
                                 (self.trainer_per_device_train_batch_size * self.trainer_gradient_accumulation_steps)
                                 ) * self.trainer_num_train_epochs
+        

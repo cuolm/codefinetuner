@@ -1,17 +1,16 @@
-
 import argparse
-import json
-import shutil
 import gc
+import json
 import logging
+import shutil
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
 import torch
 from datasets import IterableDataset
-from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 from peft import PeftModel
+from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 
 from .config import Config
 
@@ -201,3 +200,4 @@ def plot_loss(config: Config) -> None:
     plt.grid(True)
     plt.savefig(Path(config.trainer_output_dir_path) / "loss_plot.png")
     plt.show()
+    

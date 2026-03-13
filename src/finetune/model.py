@@ -1,10 +1,14 @@
 
-import torch
-from transformers import AutoModelForCausalLM, BitsAndBytesConfig
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
+import logging
 
+import torch
+from peft import LoraConfig, PeftModel, get_peft_model, prepare_model_for_kbit_training
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 
 from .config import Config
+
+
+logger = logging.getLogger("src.finetune.model")
 
 
 def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:
@@ -38,6 +42,13 @@ def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:
             pretrained_model_name_or_path=config.model_name,
             attn_implementation=config.model_attn_implementation
         ).to("cpu")
+    
+    logger.info(
+        f"Loaded model: {config.model_name} | "
+        f"Device: {config.device} | "
+        f"Dtype: {model_dtype} | "
+        f"Attention: {config.model_attn_implementation}"
+    )
     
     # forces the input to require gradients, ensuring the backward pass graph stays connected when using frozen base models with gradient checkpointing
     if config.trainer_gradient_checkpointing:
