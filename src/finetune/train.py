@@ -4,7 +4,7 @@ import json
 import logging
 import shutil
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import matplotlib.pyplot as plt
 import torch
@@ -24,13 +24,13 @@ class FIMDataCollator:
         self.label_pad_token_id = label_pad_token_id 
 
     def __call__(self, examples: List[Dict[str, List[int]]]) -> Dict[str, torch.Tensor]:
-        # Find max length for this specific batch.
+        # find max length for this specific batch
         max_ex_length = 0 
         for ex in examples:
             if len(ex["input_ids"]) > max_ex_length:
                 max_ex_length = len(ex["input_ids"])
         
-        # Apply padding. 
+        # apply padding 
         padded_examples = [] 
         for ex in examples:
             pad_length = max_ex_length - len(ex["input_ids"])
@@ -41,7 +41,7 @@ class FIMDataCollator:
             }  
             padded_examples.append(padded_ex)
 
-        # Stack separate examples into a single tensors matrix.
+        # stack separate examples into a single tensors matrix
         examples_batch = {
             "input_ids": torch.tensor([ex["input_ids"] for ex in padded_examples], dtype=torch.long),
             "attention_mask": torch.tensor([ex["attention_mask"] for ex in padded_examples], dtype=torch.long),
@@ -64,11 +64,22 @@ def train_and_save_lora_model(
     tokenizer.pad_token = config.fim_pad_token
     tokenizer.padding_side = "right"
 
+    if config.model_dtype == torch.bfloat16:
+        trainer_bf16 = True
+        trainer_fp16 = False
+    elif config.model_dtype == torch.float16:
+        trainer_bf16 = False 
+        trainer_fp16 = True 
+    else:
+        trainer_bf16 = False 
+        trainer_fp16 = False 
+
+
     training_args = TrainingArguments(
         output_dir=config.trainer_output_dir_path,
         per_device_train_batch_size=config.trainer_per_device_train_batch_size,
         per_device_eval_batch_size=config.trainer_per_device_eval_batch_size,
-        gradient_accumulation_steps=config.trainer_gradient_accumulation_steps, # simulate a batch size of 4 but only load 1 example at a time in memory.
+        gradient_accumulation_steps=config.trainer_gradient_accumulation_steps, 
         learning_rate=config.trainer_learning_rate,
         weight_decay=config.trainer_weight_decay,
         max_grad_norm=config.trainer_max_grad_norm,
@@ -82,8 +93,8 @@ def train_and_save_lora_model(
         logging_strategy=config.trainer_logging_strategy,
         save_strategy=config.trainer_save_strategy,
         save_steps=config.trainer_save_steps,
-        bf16=config.trainer_bf16,  # if set to True fp16 needs to be set to false 
-        fp16=config.trainer_fp16,  # if set to True bf16 needs to be set to False
+        bf16=trainer_bf16,  
+        fp16=trainer_fp16,  
         gradient_checkpointing=config.trainer_gradient_checkpointing
     )
 
@@ -106,16 +117,14 @@ def train_and_save_lora_model(
     elif user_args.resume is not None:
         trainer.train(resume_from_checkpoint=user_args.resume) 
     else:
-        trainer.train() # train from scratch
+        trainer.train()  # train from scratch
 
     lora_model.save_pretrained(config.lora_adapter_path) # save lora adapter only
     log_history = trainer.state.log_history
 
     if config.device == "cuda":
-        # Clear 4-bit model from VRAM to make room for the FP16 base model.
-        if 'trainer' in locals():
-            del trainer  # clear trainer references
-
+        # clear 4-bit model from VRAM to make room for the FP16 base model
+        del trainer  # clear trainer references
         del lora_model  # remove model reference
 
         gc.collect()  # force garbage collection
@@ -124,15 +133,15 @@ def train_and_save_lora_model(
             torch.cuda.synchronize()  # wait for gpu
             torch.cuda.empty_cache()  # clear gpu cache
         
-        # Ensure offload folder for merging exists before loading the model.
+        # ensure offload folder for merging exists before loading the model
         config.trainer_model_merge_offload_folder_path.mkdir(parents=True, exist_ok=True)
 
-        # Load fresh FP16 base model.
+        # load fresh base model
         base_model = AutoModelForCausalLM.from_pretrained(
             pretrained_model_name_or_path=config.model_name,
-            dtype=torch.float16,
+            dtype=config.model_dtype,
             device_map="auto",
-            offload_folder=str(config.trainer_model_merge_offload_folder_path), # Offload model layers to disk during loading to prevent RAM (OOM) crashes. 
+            offload_folder=str(config.trainer_model_merge_offload_folder_path),  # offload model layers to disk during loading to prevent RAM (OOM) crashes 
             low_cpu_mem_usage=True
         )
 
@@ -142,13 +151,13 @@ def train_and_save_lora_model(
             offload_folder=str(config.trainer_model_merge_offload_folder_path)
         )
 
-    # Merge lora adapter into base model and save it with the tokenizer of the model.
+    # merge lora adapter into base model and save it with the tokenizer of the model
     merged_model= lora_model.merge_and_unload() 
-    merged_model = merged_model.to(torch.float16) 
+    merged_model = merged_model.to(config.model_dtype) 
     merged_model.save_pretrained(config.lora_model_path)
     tokenizer.save_pretrained(config.lora_model_path)
 
-    # Clean up offload folder.
+    # clean up offload folder
     if config.trainer_model_merge_offload_folder_path.exists():
         shutil.rmtree(config.trainer_model_merge_offload_folder_path)
 

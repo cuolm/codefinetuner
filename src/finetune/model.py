@@ -12,18 +12,11 @@ logger = logging.getLogger("src.finetune.model")
 
 
 def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:
-    if config.trainer_bf16:
-        model_dtype = torch.bfloat16
-    elif config.trainer_fp16:
-        model_dtype = torch.float16
-    else:
-        model_dtype = torch.float32
-
     if config.device == "cuda":
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",  # nf4 (NormalFloat4) = optimal for LLM training, because llm weights follwo normal distribution  
-            bnb_4bit_compute_type=model_dtype,
+            bnb_4bit_compute_type=config.model_dtype,
             bnb_4bit_use_double_quant=True,
         )
         model = AutoModelForCausalLM.from_pretrained(
@@ -37,18 +30,18 @@ def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:
         model = AutoModelForCausalLM.from_pretrained(
             pretrained_model_name_or_path=config.model_name,
             attn_implementation=config.model_attn_implementation,
-            dtype=model_dtype 
+            dtype=config.model_dtype 
         ).to("mps")
     else:
         model = AutoModelForCausalLM.from_pretrained(
             pretrained_model_name_or_path=config.model_name,
             attn_implementation=config.model_attn_implementationa,
-            dtype=model_dtype
+            dtype=config.model_dtype
         ).to("cpu")
     
     logger.info(
         f"Model: {config.model_name} | Device: {config.device} | "
-        f"Dtype: {model_dtype} | Attn: {config.model_attn_implementation}"
+        f"Dtype: {config.model_dtype} | Attn: {config.model_attn_implementation}"
     )
     
     # forces the input to require gradients, ensuring the backward pass graph stays connected when using frozen base models with gradient checkpointing

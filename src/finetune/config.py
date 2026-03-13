@@ -57,6 +57,7 @@ class Config:
 
     # --- Hardware Configuration --- 
     device: str = field(init=False)
+    model_dtype: torch.dtype = field(init=False)
     trainer_bf16: bool = field(init=False)  # if set to true fp16 needs to be set to false 
     trainer_fp16: bool = field(init=False)  # if set to true bf16 needs to be set to false
     
@@ -78,16 +79,13 @@ class Config:
     def _setup_device_and_precision(self):
         if torch.cuda.is_available():
             self.device = "cuda"
-            self.trainer_bf16 = True
-            self.trainer_fp16 = False
+            self.model_dtype = torch.bfloat16
         elif torch.backends.mps.is_available():
             self.device = "mps"
-            self.trainer_bf16 = False
-            self.trainer_fp16 = True
+            self.model_dtype = torch.float16
         else:
             self.device = "cpu"
-            self.trainer_bf16 = False
-            self.trainer_fp16 = False
+            self.model_dtype = torch.float32
 
     def _setup_paths(self):
         self.project_root_path = Path(__file__).resolve().parents[2]
