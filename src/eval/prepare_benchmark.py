@@ -41,26 +41,26 @@ def create_benchmark_dataset(config: Config) -> int:
 
     dataset = load_dataset(
         "json", 
-        data_files=str(config.input_dataset_path), 
+        data_files=str(config.test_dataset_path), 
         features=dataset_features, 
         streaming=True
     )["train"]
     
     shuffled_dataset = dataset.shuffle(
-        buffer_size=config.prepare_benchmark_shuffle_buffer_size,
-        seed=config.prepare_benchmark_shuffle_seed
+        buffer_size=config.benchmark_shuffle_buffer_size,
+        seed=config.benchmark_shuffle_seed
     )
 
     benchmark_examples = []
     added_examples_count = 0
     for data_example in shuffled_dataset:
-        if added_examples_count >= config.input_sample_size:
+        if added_examples_count >= config.benchmark_sample_size:
             break
         
         # decode including special FIM tokens for regex extraction
         decoded_text = tokenizer.decode(data_example["input_ids"], skip_special_tokens=False)
         fim_parts = _extract_fim_parts(config, decoded_text)
-        if (len(fim_parts["reference_middle"]) < config.min_fim_middle_chars or
+        if (len(fim_parts["reference_middle"]) < config.benchmark_min_fim_middle_chars or
             len(fim_parts["prefix"].strip()) == 0):
             continue
         benchmark_examples.append(fim_parts)

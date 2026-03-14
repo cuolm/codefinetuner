@@ -17,10 +17,10 @@ def _generate_code(config: Config, model: AutoModelForCausalLM, tokenizer: AutoT
         outputs = model.generate(
                 input_ids=input_tokens_dict["input_ids"],
                 attention_mask=input_tokens_dict["attention_mask"], 
-                max_new_tokens=config.gen_max_new_tokens,
-                do_sample=config.gen_do_sample,
-                temperature=config.gen_temperature,
-                top_p=config.gen_top_p,
+                max_new_tokens=config.generation_max_new_tokens,
+                do_sample=config.generation_do_sample,
+                temperature=config.generation_temperature,
+                top_p=config.generation_top_p,
                 bad_words_ids=bad_words_ids,
                 pad_token_id=tokenizer.pad_token_id
             )

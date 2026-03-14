@@ -57,14 +57,3 @@ def _ensure_benchmark_dataset(config: Config, user_args: argparse.Namespace) -> 
         logger.info(f"Created new benchmark dataset '{config.benchmark_dataset_path}' with '{dataset_len}' examples")
     else:
         logger.info(f"Proceeding with existing file '{config.benchmark_dataset_path}'...")
-
-
-def _ensure_directories_exist(config: Config) -> None:
-    """Create all required output directories."""
-    directories = [
-        config.base_results_tmp_path.parent,
-        config.evaluation_results_path.parent,
-    ]
-    for dir_path in directories:
-        dir_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Ensured directory exists: {dir_path}")

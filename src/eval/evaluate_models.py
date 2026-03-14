@@ -40,11 +40,14 @@ def _evaluate_models_to_file(config: Config, user_args: argparse.Namespace, toke
     model = PeftModel.from_pretrained(base_model, checkpoint_path)
     model.eval()
 
+    # Ensure that benchmark evaluation results directory exists
+    config.benchmark_evaluation_results_path.parent.mkdir(parents=True, exist_ok=True)
+
     logger.info("--- Starting Generation and Evaluation ---")
     
     # process each example 
     with config.benchmark_dataset_path.open("r") as benchmark_dataset_file, \
-         config.evaluation_results_path.open("w") as evaluation_results_file:
+         config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
         
         for i, line in enumerate(benchmark_dataset_file):
             example = json.loads(line)
@@ -117,16 +120,14 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained(config.model_name)
         tokenizer.pad_token = config.fim_pad_token
         tokenizer.padding_side = "right"
-
-        _ensure_directories_exist(config)
         _evaluate_models_to_file(config, user_args, tokenizer)
 
     metrics_configurations = [
-        (config.sentencebleu_score_name, config.sentencebleu_plot_file, True),
-        (config.codebleu_score_name, config.codebleu_plot_file, True),
-        (config.exact_match_score_name, config.exact_match_plot_file, True),
-        (config.line_match_score_name, config.line_match_plot_file, True),
-        (config.perplexity_name, config.perplexity_plot_file, False),
+        (config.sentencebleu_score_name, config.sentencebleu_plot_path, True),
+        (config.codebleu_score_name, config.codebleu_plot_path, True),
+        (config.exact_match_score_name, config.exact_match_plot_path, True),
+        (config.line_match_score_name, config.line_match_plot_path, True),
+        (config.perplexity_name, config.perplexity_plot_path, False),
     ]
 
     all_metric_stats = []
@@ -136,7 +137,7 @@ def main():
             all_metric_stats.append(stats)
     
     _save_evaluation_report(config, user_args.checkpoint, all_metric_stats)
-    _plot_all_metric_averages(config.evaluation_report_path, config.all_metrics_average) 
+    _plot_all_metric_averages(config.benchmark_evaluation_report_path, config.benchmark_evaluation_averages_path) 
 
 
 if __name__ == "__main__":

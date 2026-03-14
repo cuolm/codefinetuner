@@ -14,7 +14,7 @@ def _analyze_metric_performance(config: Config, score_name: str, plot_file: Path
     base_scores = []
     lora_scores = []
     
-    with open(config.evaluation_results_path, 'r') as f:
+    with open(config.benchmark_evaluation_results_path, 'r') as f:
         for line in f:
             data = json.loads(line)
             if score_name == config.codebleu_score_name and not data.get("codebleu_valid", True):
@@ -126,7 +126,7 @@ def _analyze_metric_performance(config: Config, score_name: str, plot_file: Path
 
 def _save_evaluation_report(config: Config, checkpoint_name: str, metric_results: list[dict]) -> None:
     """Writes all processed metrics to a single summary JSON file."""
-    report_path = config.evaluation_report_path
+    report_path = config.benchmark_evaluation_report_path
     report_content = {
         "checkpoint": checkpoint_name,
         "evaluation_date": datetime.now().isoformat(timespec="seconds"),
@@ -137,12 +137,12 @@ def _save_evaluation_report(config: Config, checkpoint_name: str, metric_results
     logger.info(f"Summary report saved to: {report_path}")
 
 
-def _plot_all_metric_averages(evaluation_report_path: Path, output_file: Path) -> None:
-    if not evaluation_report_path.exists():
-        logger.error(f"Evaluation report file not found: {evaluation_report_path}")
+def _plot_all_metric_averages(benchmark_evaluation_report_path: Path, output_file: Path) -> None:
+    if not benchmark_evaluation_report_path.exists():
+        logger.error(f"Evaluation report file not found: {benchmark_evaluation_report_path}")
         return
 
-    with open(evaluation_report_path, "r") as f:
+    with open(benchmark_evaluation_report_path, "r") as f:
         data = json.load(f)
 
     results = data.get("results", [])

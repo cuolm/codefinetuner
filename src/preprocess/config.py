@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field
+import math
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -57,7 +58,7 @@ class Config:
     
     def _validate_ratio(self):
         total_ratio = self.train_ratio + self.eval_ratio + self.test_ratio
-        if not np.isclose(total_ratio, 1.0):
+        if not math.isclose(total_ratio, 1.0, rel_tol=1e-6):
             raise ValueError(f"Train + eval + test ratios must sum to 1.0, got {total_ratio}")
 
     def _setup_paths(self):
