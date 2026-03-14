@@ -42,34 +42,35 @@ def _setup_logger(log_level: str) -> None:
 
 def _parse_args(config: Config) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Start or resume LoRA model training")
-    parser.add_argument("--resume",
-                        type=str, 
-                        default=None, 
-                        metavar="CHECKPOINT",
-                        help='Checkpoint name to resume training from, or "last"')
-    user_args = parser.parse_args()
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help='Resume from "last" or path'
+    )
+    parser.add_argument(
+        "--delete-all-checkpoints",
+        action="store_true",
+        help="Delete existing output dir"
+    )
+    args = parser.parse_args()
 
-    if user_args.resume:
-        answer = input(f"You passed --resume='{user_args.resume}'. Do you want to resume training from this checkpoint? (y/N): ").strip().lower()
-        if answer not in ["y", "yes"]:
-            logger.info("Aborting. To start fresh training, run the script without --resume.")
-            sys.exit(0)
-    
+    output_dir = config.trainer_output_dir_path
+    if args.resume and not args.delete_all_checkpoints:
+        logger.info(f"Resuming from: {args.resume}")
+    elif not args.resume and args.delete_all_checkpoints:
+        if output_dir.exists():
+            logger.warning(f"Deleting: {output_dir}")
+            shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Cleared: {output_dir}")
+    elif args.resume and args.delete_all_checkpoints:
+        logger.error("Configuration conflict: Cannot resume from a checkpoint while '--delete-all-checkpoints' is set.")
+        sys.exit(1)
     else:
-        train_fresh = input("Do you really want to start training from scratch? (y/N): ").strip().lower()
-        if train_fresh not in ["y", "yes"]:
-            logger.info("Aborting fresh training run.")
-            sys.exit(0) 
-        
-        answer = input(f"No --resume argument passed. Do you want to delete the entire '{config.trainer_output_dir_path}' folder and recreate it empty? (y/N): ").strip().lower()
-        if answer in ["y", "yes"]:
-            if config.trainer_output_dir_path.exists():
-                logger.info(f"Deleting {config.trainer_output_dir_path} folder and all its contents...")
-                shutil.rmtree(config.trainer_output_dir_path)
-            config.trainer_output_dir_path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Recreated empty {config.trainer_output_dir_path} folder.")
-        
-    return user_args
+        logger.info(f"Starting fresh training. Existing checkpoints in {output_dir} are preserved.")
+
+    return args
 
 
 def load_datasets(config: Config) -> Tuple[IterableDataset, IterableDataset]:
