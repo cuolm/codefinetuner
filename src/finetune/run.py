@@ -43,6 +43,13 @@ def _setup_logger(log_level: str) -> None:
 def _parse_args(config: Config) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Start or resume LoRA model training")
     parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging level.",
+    )
+    parser.add_argument(
         "--resume",
         type=str,
         default=None,
@@ -93,8 +100,8 @@ def load_datasets(config: Config) -> Tuple[IterableDataset, IterableDataset]:
 
 def main() -> None:
     config = Config()
-    _setup_logger("INFO")
     user_args = _parse_args(config)
+    _setup_logger(user_args.log_level)
     train_dataset, eval_dataset= load_datasets(config)
     logger.info(f"Dataset: {config.dataset_train_dataset_length} train examples, max_steps={config.trainer_max_steps}")
 
