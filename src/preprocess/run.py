@@ -30,7 +30,7 @@ def _setup_logger(log_level: str) -> None:
             }
         },
         "loggers": {
-            "src.preprocess": {  # package logger instead of root
+            "src.preprocess": {  
                 "handlers": ["stderr_handler"],
                 "level": log_level,
                 "propagate": False,

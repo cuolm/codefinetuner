@@ -31,10 +31,12 @@ def _setup_logger(log_level: str) -> None:
                 "formatter": "standard",
             }
         },
-        "root": {
-            "handlers": ["stderr_handler"],
-            "level": log_level,
-            "propagate": True
+        "loggers": {
+            "src.finetune": {  
+                "handlers": ["stderr_handler"],
+                "level": log_level,
+                "propagate": False,
+            }
         }
     }
     logging.config.dictConfig(config)
