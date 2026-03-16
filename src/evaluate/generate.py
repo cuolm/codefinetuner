@@ -46,34 +46,19 @@ def _load_tokenizer(config: Config) -> AutoTokenizer:
     return tokenizer
 
 
-def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer,
-                       prefix: str, suffix: str, reference_middle: str) -> float:
+def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM, 
+                        perplexity_input_token_ids: list, perplexity_label_token_ids) -> float:
     """
-    FIM perplexity: Measures model confidence in the reference middle code.
-    (How surprised is the model by the reference middle code).
+    FIM perplexity: Measures model confidence in the ground truth reference middle code.
+    (How surprised is the model by the ground truth reference middle code).
     Lower perplexity indicates higher confidence. perplexity = exp(loss).
     """
     try:
-        fim_prompt = (
-            f"{config.fim_prefix_token}{prefix}"
-            f"{config.fim_suffix_token}{suffix}"
-            f"{config.fim_middle_token}"
-        )
-        
-        prompt_tokenized = tokenizer(fim_prompt, return_tensors="pt")
-        middle_tokenized = tokenizer(reference_middle, return_tensors="pt")
-
-        prompt_ids = prompt_tokenized.input_ids.to(config.device)
-        middle_ids = middle_tokenized.input_ids.to(config.device)
-
-        input_ids = torch.cat([prompt_ids, middle_ids], dim=1)
-        
-        labels = input_ids.clone()
-        prompt_len = prompt_ids.shape[1]
-        labels[:, :prompt_len] = -100
-
+        input_tensor = torch.tensor([perplexity_input_token_ids], device=config.device)
+        label_tensor = torch.tensor([perplexity_label_token_ids], device=config.device)
         with torch.inference_mode():
-            outputs = model(input_ids=input_ids, labels=labels)
+            outputs = model(input_ids=input_tensor, 
+                            labels=label_tensor)
             loss = outputs.loss
             
         return math.exp(loss.item())
@@ -83,9 +68,41 @@ def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM, tokenizer: 
         return float('inf')
 
 
+def _generate(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, prompt_token_ids: list) -> list:
+    model.eval()
+    prompt_token_ids_tensor = torch.tensor([prompt_token_ids], device=config.device)
+    with torch.inference_mode():
+        generated_token_ids_tensor = model.generate(
+            input_ids=prompt_token_ids_tensor,
+            max_new_tokens=config.generation_max_new_tokens,
+            do_sample=config.generation_do_sample,
+            temperature=config.generation_temperature,
+            top_p=config.generation_top_p,
+            pad_token_id=tokenizer.pad_token_id
+        )
+
+        # slice the output, take everything after the input_length, model.generate() functin returns the whole example, not only the generated text
+        generated_middle_token_ids_tensor = generated_token_ids_tensor[0][prompt_token_ids_tensor.shape[1] :]
+        generated_middle_token_ids = generated_middle_token_ids_tensor.tolist()
+
+    return generated_middle_token_ids
+
+
+def _clear_hardware_cache(config: Config) -> None:
+    gc.collect()
+    if config.device == "cuda":
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+    elif config.device == "mps":
+        torch.mps.empty_cache()
+
+
 def generate_and_save(config: Config, user_args: argparse.Namespace):
     model = _load_model(config, user_args)
     tokenizer = _load_tokenizer(config)
+    fim_prefix_token_id = tokenizer.convert_tokens_to_ids(config.fim_prefix_token)
+    fim_suffix_token_id = tokenizer.convert_tokens_to_ids(config.fim_suffix_token)
+    fim_middle_token_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
     
     try:
         line_counter = 0
@@ -93,20 +110,25 @@ def generate_and_save(config: Config, user_args: argparse.Namespace):
             config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
             
             for line in benchmark_dataset_file:
-                example = json.loads(line)
-                prompt = (
-                    f"{config.fim_prefix_token}{example['prefix']}"
-                    f"{config.fim_suffix_token}{example['suffix']}"
-                    f"{config.fim_middle_token}"
-                )
-
-                reference_middle = example["reference_middle"]
-                lora_generated_middle = _generate_code(config, model, tokenizer, prompt)
-                lora_perplexity = _get_fim_perplexity(config, model, tokenizer, example["prefix"], example["suffix"], reference_middle)
-                with model.disable_adapter():
-                    base_generated_middle = _generate_code(config, model, tokenizer, prompt)
-                    base_perplexity = _get_fim_perplexity(config, model, tokenizer, example["prefix"], example["suffix"], reference_middle)
+                benchmark_example = json.loads(line)
+                prompt_token_ids = ([fim_prefix_token_id] + benchmark_example["prefix_token_ids"] +
+                                   [fim_suffix_token_id] + benchmark_example["suffix_token_ids"] +
+                                   [fim_middle_token_id])
                 
+                perplexity_input_token_ids = benchmark_example["example_token_ids"]
+                perplexity_label_token_ids = perplexity_input_token_ids.copy()
+                perplexity_label_token_ids[:len(prompt_token_ids)] = [-100] * len(prompt_token_ids)  # mask labels all except ground truth reference middle tokens
+
+                lora_generated_middle_token_ids = _generate(config, model, tokenizer, prompt_token_ids)
+                lora_perplexity = _get_fim_perplexity(config, model, perplexity_input_token_ids, perplexity_label_token_ids)
+
+                with model.disable_adapter():
+                    base_generated_middle_token_ids = _generate(config, model, tokenizer, prompt_token_ids)
+                    base_perplexity = _get_fim_perplexity(config, model, perplexity_input_token_ids, perplexity_label_token_ids)
+
+                reference_middle = benchmark_example["middle"]
+                lora_generated_middle = tokenizer.decode(lora_generated_middle_token_ids, skip_special_tokens=True)
+                base_generated_middle = tokenizer.decode(base_generated_middle_token_ids, skip_special_tokens=True)
                 result = {
                     "example_id": line_counter,
                     "reference_middle": reference_middle,
@@ -127,43 +149,4 @@ def generate_and_save(config: Config, user_args: argparse.Namespace):
     except Exception:
         logger.exception("Generation failed.")
         raise
-
-
-def _generate_code(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, prompt: str) -> str:
-    model.eval()
-    input_tokens_dict = tokenizer(prompt, return_tensors="pt").to(config.device)
-
-    bad_words_ids = [
-        tokenizer.encode(config.fim_prefix_token, add_special_tokens=False),
-        tokenizer.encode(config.fim_middle_token, add_special_tokens=False),
-        tokenizer.encode(config.fim_suffix_token, add_special_tokens=False)
-    ]
-
-    with torch.inference_mode(): 
-        outputs = model.generate(
-                input_ids=input_tokens_dict["input_ids"],
-                attention_mask=input_tokens_dict["attention_mask"], 
-                max_new_tokens=config.generation_max_new_tokens,
-                do_sample=config.generation_do_sample,
-                temperature=config.generation_temperature,
-                top_p=config.generation_top_p,
-                bad_words_ids=bad_words_ids,
-                pad_token_id=tokenizer.pad_token_id
-            )
     
-
-    # slice the output, take everything after the input_length, model.generate() functin returns the whole example, not only the generated text
-    input_length = input_tokens_dict["input_ids"].shape[1]
-    generated_tokens = outputs[0][input_length:]
-
-    generated_code = tokenizer.decode(generated_tokens, skip_special_tokens=True)
-    return generated_code 
-
-
-def _clear_hardware_cache(config: Config) -> None:
-    gc.collect()
-    if config.device == "cuda":
-        torch.cuda.synchronize()
-        torch.cuda.empty_cache()
-    elif config.device == "mps":
-        torch.mps.empty_cache()

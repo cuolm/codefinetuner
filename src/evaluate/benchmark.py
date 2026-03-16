@@ -12,37 +12,45 @@ from .config import Config
 logger = logging.getLogger("src.evaluate.benchmark")
 
 
-def ensure_benchmark_dataset(config: Config, user_args: argparse.Namespace) -> None:
-    if user_args.overwrite_dataset or not config.benchmark_dataset_path.exists():
-        dataset_len = _create_benchmark_dataset(config)
-        logger.info(f"Created new benchmark dataset '{config.benchmark_dataset_path}' with '{dataset_len}' examples")
-    else:
-        logger.info(f"Proceeding with existing file '{config.benchmark_dataset_path}'...")
+def _extract_fim_parts(config: Config, tokenizer: AutoTokenizer, example_token_ids: list[int]) -> dict:
+    fim_prefix_token_id = tokenizer.convert_tokens_to_ids(config.fim_prefix_token)
+    fim_suffix_token_id = tokenizer.convert_tokens_to_ids(config.fim_suffix_token)
+    fim_middle_token_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
+    eos_token_id = tokenizer.convert_tokens_to_ids(config.eos_token)
 
+    try:
+        fim_prefix_token_position = example_token_ids.index(fim_prefix_token_id)
+        fim_suffix_token_position = example_token_ids.index(fim_suffix_token_id)
+        fim_middle_token_position = example_token_ids.index(fim_middle_token_id)
+        eos_token_position = example_token_ids.index(eos_token_id)
+    except ValueError:
+        raise ValueError("Missing FIM or EOS tokens in the sequence.")
 
-def _extract_fim_parts(config: Config, decoded_text: str) -> dict:
-    """Extracts prefix, suffix, and middle (reference) using FIM tags from config."""
-    # Escape tokens for regex in case they contain special characters
-    p = re.escape(config.fim_prefix_token)
-    s = re.escape(config.fim_suffix_token)
-    m = re.escape(config.fim_middle_token)
+    if (fim_prefix_token_position >= fim_suffix_token_position  
+        or fim_suffix_token_position >= fim_middle_token_position
+        or fim_middle_token_position >= eos_token_position):
+        raise ValueError("FIM tokens are in the wrong order.")
+        
+    prefix_token_ids = example_token_ids[fim_prefix_token_position+1 : fim_suffix_token_position]
+    suffix_token_ids = example_token_ids[fim_suffix_token_position+1 : fim_middle_token_position]
+    middle_token_ids = example_token_ids[fim_middle_token_position+1 : eos_token_position]
 
-    prefix_pattern = f"{p}(.*?){s}"
-    suffix_pattern = f"{s}(.*?){m}"
-    middle_pattern = f"{m}(.*)"
-
-    prefix = re.search(prefix_pattern, decoded_text, re.DOTALL)
-    suffix = re.search(suffix_pattern, decoded_text, re.DOTALL)
-    middle = re.search(middle_pattern, decoded_text, re.DOTALL)
+    prefix = tokenizer.decode(prefix_token_ids, skip_special_tokens=True)
+    suffix = tokenizer.decode(suffix_token_ids, skip_special_tokens=True)
+    middle = tokenizer.decode(middle_token_ids, skip_special_tokens=True)
 
     return {
-        "prefix": prefix.group(1) if prefix else "",
-        "suffix": suffix.group(1) if suffix else "",
-        "reference_middle": middle.group(1).replace("<|endoftext|>", "").strip() if middle else ""
+        "example_token_ids": example_token_ids,
+        "prefix_token_ids": prefix_token_ids,
+        "suffix_token_ids": suffix_token_ids,
+        "middle_token_ids": middle_token_ids,
+        "prefix": prefix,
+        "suffix": suffix,
+        "middle": middle
     }
 
 
-def _create_benchmark_dataset(config: Config) -> int:
+def create_benchmark_dataset(config: Config) -> int:
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
 
     dataset_features = Features({
@@ -51,36 +59,39 @@ def _create_benchmark_dataset(config: Config) -> int:
         "labels": Sequence(Value("int64")),
     })
 
-    dataset = load_dataset(
+    test_dataset = load_dataset(
         "json", 
         data_files=str(config.test_dataset_path), 
         features=dataset_features, 
         streaming=True
     )["train"]
     
-    shuffled_dataset = dataset.shuffle(
+    shuffled_dataset = test_dataset.shuffle(
         buffer_size=config.benchmark_shuffle_buffer_size,
         seed=config.benchmark_shuffle_seed
     )
 
     benchmark_examples = []
     added_examples_count = 0
-    for data_example in shuffled_dataset:
+    for example in shuffled_dataset:
         if added_examples_count >= config.benchmark_sample_size:
             break
         
-        # decode including special FIM tokens for regex extraction
-        decoded_text = tokenizer.decode(data_example["input_ids"], skip_special_tokens=False)
-        fim_parts = _extract_fim_parts(config, decoded_text)
-        if (len(fim_parts["reference_middle"]) < config.benchmark_min_fim_middle_chars or
-            len(fim_parts["prefix"].strip()) == 0):
+        try:
+            fim_parts = _extract_fim_parts(config, tokenizer, example["input_ids"])
+        except ValueError:
+            logger.warning(f"Could not extract fim parts from example, skipping") 
             continue
+
+        if (len(fim_parts["middle_token_ids"]) < config.benchmark_min_fim_middle_tokens   
+            or len(fim_parts["prefix_token_ids"]) == 0):  # skip if no prefix
+            continue
+
         benchmark_examples.append(fim_parts)
         added_examples_count += 1
 
     with open(config.benchmark_dataset_path, 'w', encoding='utf-8') as f:
         for example in benchmark_examples:
-            if example["prefix"] or example["reference_middle"]:
-                f.write(json.dumps(example) + '\n')
+            f.write(json.dumps(example) + '\n')
     
     return len(benchmark_examples)

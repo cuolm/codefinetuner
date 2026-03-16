@@ -18,10 +18,11 @@ class Config:
     fim_suffix_token: str = "<|fim_suffix|>"
     fim_middle_token: str = "<|fim_middle|>"
     fim_pad_token: str = "<|fim_pad|>"
+    eos_token: str = "<|endoftext|>"
 
     # --- Benchmark ---
     benchmark_sample_size: int = 2 
-    benchmark_min_fim_middle_chars: int = 0 
+    benchmark_min_fim_middle_tokens: int = 0 
     benchmark_shuffle_buffer_size: int = 10000000
     benchmark_shuffle_seed: int = 42 
 
@@ -100,7 +101,7 @@ class Config:
         self.project_root_path = Path(__file__).resolve().parent.parent.parent
         self.trainer_output_dir_path = self.project_root_path / "results"
         self.test_dataset_path = self.project_root_path / "datasets" / "test_dataset.jsonl"
-        self.benchmark_dataset_path = self.project_root_path / "benchmarks" / "pebble_test_examples.jsonl"
+        self.benchmark_dataset_path = self.project_root_path / "benchmarks" / "benchmark_dataset.jsonl"
         self.benchmark_evaluation_results_path = self.project_root_path / "benchmarks" / "results" / "evaluation_results.jsonl"
         self.codebleu_plot_path = self.project_root_path / "benchmarks" / "results" / "codebleu_plot.png"
         self.sentencebleu_plot_path = self.project_root_path / "benchmarks" / "results" / "sentencebleu_plot.png"

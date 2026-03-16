@@ -11,7 +11,7 @@ from .config import Config
 logger = logging.getLogger("src.evaluate.analyze")
 
 
-def calculate_metric_stats(config, metric_name: str, higher_is_better: bool) -> dict:
+def calculate_metric(config, metric_name: str, higher_is_better: bool) -> dict:
     base_scores, lora_scores = [], []
     
     with open(config.benchmark_evaluation_results_path, 'r') as f:
@@ -128,7 +128,7 @@ def plot_metric_and_save(stats: dict, metric_name: str, plot_path: Path) -> None
     plt.close(fig)
 
 
-def save_evaluation_report(config: Config, checkpoint_name: str, all_metric_stats_np: list[dict]) -> None:
+def save_all_metric_stats(config: Config, checkpoint_name: str, all_metric_stats_np: list[dict]) -> None:
     """Writes all processed metrics to a single summary JSON file."""
     all_metric_stats = []
     for stat_np in all_metric_stats_np:
