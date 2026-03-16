@@ -13,26 +13,26 @@ from transformers.trainer_utils import get_last_checkpoint
 from .config import Config
 
 
-logger = logging.getLogger("stc.evaluate.generate")
+logger = logging.getLogger("src.evaluate.generate")
 
 
 def _load_lora_model(config: Config, checkpoint_path: Path) ->AutoModelForCausalLM:
+    # load base model to CPU first to prevent VRAM fragmentation/OOM
     base_model = AutoModelForCausalLM.from_pretrained(
         pretrained_model_name_or_path=config.model_name,
         dtype=config.model_dtype,
-        device_map="auto",
         low_cpu_mem_usage=True
     )
 
-    # load and attach LoRA adapter
+    # load and attach LoRA adapter and move to device (CUDA, MPS or remains on CPU)
     lora_model = PeftModel.from_pretrained(
         model=base_model, 
         model_id=checkpoint_path
-    )
+    ).to(config.device)
 
     lora_model.eval()
 
-    logger.info(f"Loaded LoRA model from checkpoint: {checkpoint_path}")
+    logger.info(f"Loaded LoRA model from checkpoint {checkpoint_path} to device {config.device}")
     return lora_model
 
 
