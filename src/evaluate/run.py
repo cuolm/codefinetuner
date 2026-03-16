@@ -2,6 +2,8 @@ import argparse
 import logging
 import logging.config
 
+from transformers.trainer_utils import get_last_checkpoint
+
 from .analyze import calculate_metric, save_all_metric_stats, plot_metric_and_save, plot_metric_averages_and_save
 from .config import Config
 from .evaluate import evaluate_and_save
@@ -81,8 +83,12 @@ def main():
     else:
         logger.info(f"Proceeding with existing file '{config.benchmark_dataset_path}'...")
     
-    if not user_args.plot_only:  
-        generate_and_save(config, user_args)
+    if not user_args.plot_only: 
+        if user_args.checkpoint == "last":
+            checkpoint_path = get_last_checkpoint(config.trainer_output_dir_path)
+        else:
+            checkpoint_path = config.trainer_output_dir_path / user_args.checkpoint
+        generate_and_save(config, checkpoint_path)
         evaluate_and_save(config)
 
     metric_configurations = [

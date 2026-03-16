@@ -3,6 +3,7 @@ import gc
 import json
 import logging
 import math
+from pathlib import Path
 
 import torch
 from peft import PeftModel
@@ -15,28 +16,24 @@ from .config import Config
 logger = logging.getLogger("stc.evaluate.generate")
 
 
-def _load_model(config: Config, user_args: argparse.Namespace) ->AutoModelForCausalLM:
-    if user_args.checkpoint == "last":
-        checkpoint_path = get_last_checkpoint(config.trainer_output_dir_path)
-    else:
-        checkpoint_path = config.trainer_output_dir_path / user_args.checkpoint
-    
-    # load base model
+def _load_lora_model(config: Config, checkpoint_path: Path) ->AutoModelForCausalLM:
     base_model = AutoModelForCausalLM.from_pretrained(
         pretrained_model_name_or_path=config.model_name,
-        dtype=torch.float16,
-        device_map="auto" if config.device == "cuda" else None,
+        dtype=config.model_dtype,
+        device_map="auto",
         low_cpu_mem_usage=True
     )
-    if config.device != "cuda":
-        base_model.to(config.device)
 
-    # load LoRA adapter
-    model = PeftModel.from_pretrained(base_model, checkpoint_path)
-    model.eval()
+    # load and attach LoRA adapter
+    lora_model = PeftModel.from_pretrained(
+        model=base_model, 
+        model_id=checkpoint_path
+    )
 
-    logger.info(f"Loaded base model and LoRA adapter: {checkpoint_path}")
-    return model
+    lora_model.eval()
+
+    logger.info(f"Loaded LoRA model from checkpoint: {checkpoint_path}")
+    return lora_model
 
 
 def _load_tokenizer(config: Config) -> AutoTokenizer:
@@ -97,8 +94,8 @@ def _clear_hardware_cache(config: Config) -> None:
         torch.mps.empty_cache()
 
 
-def generate_and_save(config: Config, user_args: argparse.Namespace):
-    model = _load_model(config, user_args)
+def generate_and_save(config: Config, checkpoint_path: Path):
+    lora_model = _load_lora_model(config, checkpoint_path)
     tokenizer = _load_tokenizer(config)
     fim_prefix_token_id = tokenizer.convert_tokens_to_ids(config.fim_prefix_token)
     fim_suffix_token_id = tokenizer.convert_tokens_to_ids(config.fim_suffix_token)
@@ -119,12 +116,12 @@ def generate_and_save(config: Config, user_args: argparse.Namespace):
                 perplexity_label_token_ids = perplexity_input_token_ids.copy()
                 perplexity_label_token_ids[:len(prompt_token_ids)] = [-100] * len(prompt_token_ids)  # mask labels all except ground truth reference middle tokens
 
-                lora_generated_middle_token_ids = _generate(config, model, tokenizer, prompt_token_ids)
-                lora_perplexity = _get_fim_perplexity(config, model, perplexity_input_token_ids, perplexity_label_token_ids)
+                lora_generated_middle_token_ids = _generate(config, lora_model, tokenizer, prompt_token_ids)
+                lora_perplexity = _get_fim_perplexity(config, lora_model, perplexity_input_token_ids, perplexity_label_token_ids)
 
-                with model.disable_adapter():
-                    base_generated_middle_token_ids = _generate(config, model, tokenizer, prompt_token_ids)
-                    base_perplexity = _get_fim_perplexity(config, model, perplexity_input_token_ids, perplexity_label_token_ids)
+                with lora_model.disable_adapter():
+                    base_generated_middle_token_ids = _generate(config, lora_model, tokenizer, prompt_token_ids)
+                    base_perplexity = _get_fim_perplexity(config, lora_model, perplexity_input_token_ids, perplexity_label_token_ids)
 
                 reference_middle = benchmark_example["middle"]
                 lora_generated_middle = tokenizer.decode(lora_generated_middle_token_ids, skip_special_tokens=True)
@@ -149,4 +146,3 @@ def generate_and_save(config: Config, user_args: argparse.Namespace):
     except Exception:
         logger.exception("Generation failed.")
         raise
-    

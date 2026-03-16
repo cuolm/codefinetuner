@@ -1,5 +1,5 @@
-import math
 import logging
+import math
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -14,6 +14,7 @@ logger = logging.getLogger("src.evaluate.config")
 class Config:
     # --- Model ---
     model_name: str = "Qwen/Qwen2.5-Coder-1.5B"
+    model_dtype: torch.dtype = field(init=False)
     fim_prefix_token: str = "<|fim_prefix|>"
     fim_suffix_token: str = "<|fim_suffix|>"
     fim_middle_token: str = "<|fim_middle|>"
@@ -75,9 +76,20 @@ class Config:
     benchmark_evaluation_averages_path: Path = field(init=False)
 
     def __post_init__(self):
-        self._setup_device()
+        self._setup_device_and_precision()
         self._setup_paths()
         self._validate_metric_weights()
+
+    def _setup_device_and_precision(self):
+        if torch.cuda.is_available():
+            self.device = "cuda"
+            self.model_dtype = torch.bfloat16
+        elif torch.backends.mps.is_available():
+            self.device = "mps"
+            self.model_dtype = torch.float16
+        else:
+            self.device = "cpu"
+            self.model_dtype = torch.float32
         
     def _validate_metric_weights(self):
         codebleu_total_weight = (self.codebleu_ngram_weight + self.codebleu_weighted_ngram_weight + 
@@ -88,14 +100,6 @@ class Config:
                                        self.sentencebleu_ngram_weight_3 + self.sentencebleu_ngram_weight_4) 
         if not math.isclose(sentencebleu_total_weight, 1.0, rel_tol=1e-6):
             raise ValueError(f"SentenceBLEU weights must sum to 1.0, got {sentencebleu_total_weight}")
-        
-    def _setup_device(self):
-        if torch.cuda.is_available():
-            self.device = "cuda"
-        elif torch.backends.mps.is_available():
-            self.device = "mps"
-        else:
-            self.device = "cpu"
 
     def _setup_paths(self):
         self.project_root_path = Path(__file__).resolve().parent.parent.parent
