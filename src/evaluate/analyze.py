@@ -94,9 +94,11 @@ def plot_metric_and_save(stats: dict, metric_name: str, plot_path: Path) -> None
 
         axs[0, 0].bar(['Base', 'LoRA'], [base_average_np, lora_average_np], color=['steelblue', 'darkorange'])
         axs[0, 0].set_title('Average Scores')
+        axs[0, 0].set_ylabel('Score')
         
         axs[0, 1].boxplot([base_array_np, lora_array_np], labels=['Base', 'LoRA'], patch_artist=True, boxprops=dict(facecolor='lightblue', color='blue'), medianprops=dict(color='red', linewidth=2))
         axs[0, 1].set_title('Score Distribution')
+        axs[0, 1].set_ylabel('Score')
         axs[0, 1].set_ylim(0, axis_upper_bound)
         if use_limit:
             axs[0, 1].text(0.95, 0.95, f'Note: Values > {y_axis_limit} hidden', transform=axs[0, 1].transAxes, ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
@@ -104,6 +106,8 @@ def plot_metric_and_save(stats: dict, metric_name: str, plot_path: Path) -> None
         axs[1, 0].scatter(base_array_np, lora_array_np, alpha=0.5, color='steelblue')
         axs[1, 0].plot([0, axis_upper_bound], [0, axis_upper_bound], 'k--', alpha=0.75, label='y=x (Tie)')
         axs[1, 0].set_title('Base vs LoRA (Per Example)')
+        axs[1, 0].set_xlabel('Base Score')
+        axs[1, 0].set_ylabel('LoRA Score')
         axs[1, 0].set_xlim(0, axis_upper_bound)
         axs[1, 0].set_ylim(0, axis_upper_bound)
         axs[1, 0].legend(loc='upper left')
@@ -116,6 +120,8 @@ def plot_metric_and_save(stats: dict, metric_name: str, plot_path: Path) -> None
         axs[1, 1].axvline(np.mean(differences), color='red', linestyle='solid')
         axs[1, 1].axvline(np.mean(differences), color='red', linestyle='solid', linewidth=2, label='Mean Diff')
         axs[1, 1].set_title('Improvement Distribution')
+        axs[1, 1].set_xlabel('Difference')
+        axs[1, 1].set_ylabel('Examples')
         hist_range = (-axis_upper_bound, axis_upper_bound)
         axs[1, 1].set_xlim(hist_range)
         axs[1, 1].legend(loc='upper left')
