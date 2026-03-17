@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 
 from .config import Config
 from .metrics import get_codebleu, get_exact_match, get_line_match, get_sentencebleu
@@ -55,7 +54,7 @@ def evaluate_and_save(config: Config) -> None:
                 if line_counter % 10 == 0:
                     logger.info(f"Processed {line_counter} examples...")
 
-        os.replace(temp_path, results_path)
+        temp_path.replace(results_path)
         logger.info(f"Successfully evaluated and saved {line_counter} examples to {config.benchmark_evaluation_results_path}.")
 
     except Exception:
