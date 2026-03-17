@@ -13,7 +13,7 @@ logger = logging.getLogger("src.evaluate.config")
 @dataclass
 class Config:
     # --- Model ---
-    model_name: str = "Qwen/Qwen2.5-Coder-1.5B"
+    model_name: str = "Qwen/Qwen2.5-Coder-7B"
     model_dtype: torch.dtype = field(init=False)
     fim_prefix_token: str = "<|fim_prefix|>"
     fim_suffix_token: str = "<|fim_suffix|>"
@@ -22,7 +22,7 @@ class Config:
     eos_token: str = "<|endoftext|>"
 
     # --- Benchmark ---
-    benchmark_sample_size: int = 2 
+    benchmark_sample_size: int = 4
     benchmark_min_fim_middle_tokens: int = 0 
     benchmark_shuffle_buffer_size: int = 10000000
     benchmark_shuffle_seed: int = 42 
@@ -115,11 +115,10 @@ class Config:
         self.benchmark_evaluation_report_path = self.project_root_path / "benchmarks" / "results" / "evaluation_report.json"
         self.benchmark_evaluation_averages_path = self.project_root_path / "benchmarks" / "results" / "all_metrics_average.png"
      
-    def nltk_ready(self) -> bool:
+    def ensure_nltk_initialized(self) -> None:
         if not self._nltk_initialized:
             logger.info("Initializing NLTK data (punkt, punkt_tab)...")
             nltk.download('punkt', quiet=True)  
             nltk.download('punkt_tab', quiet=True)
             self._nltk_initialized = True
             logger.info("NLTK data initialized successfully.")
-        return True

@@ -2,7 +2,6 @@ import logging
 import re
 from nltk.tokenize import word_tokenize
 from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from .codebleu_shim import codebleu_score
 from .config import Config
@@ -16,9 +15,9 @@ def _codebleu_structure_valid(config: Config, reference: str) -> bool:
     If the reference is too simple (e.g., import blocks, comment) 
     to build these structures, the example is skipped. 
     """
-    # suppress logger warnings
+    # suppress root logger warnings that are raised if it is not possible to calculate all 4 metrics
     root_logger = logging.getLogger()
-    original_level = root_logger.level
+    original_level = root_logger.getEffectiveLevel() 
     root_logger.setLevel(logging.ERROR)
     
     try:
@@ -87,7 +86,7 @@ def get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
     (Method1: Adds a tiny epsilon to all n-gram counts) to prevent a total 
     0.0 score when long sequences (e.g. 4-grams) don't match exactly.
     """
-    config.nltk_ready()  # make sure that required nltk downloads are done
+    config.ensure_nltk_initialized()  # make sure that required nltk downloads are done
 
     try:
         reference_tokens = word_tokenize(reference)
@@ -116,7 +115,7 @@ def get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
         return 0.0
 
 
-def get_exact_match(config: Config, reference: str, prediction: str) -> float:
+def get_exact_match(reference: str, prediction: str) -> float:
     """Exact match is 1.0 if identical, 0.0 otherwise. Collapese all whitespaces."""
     try:
         # re.sub(r'\s+', ' ', text.strip()): Collapses whitespace to compare logic regardless of formatting.
