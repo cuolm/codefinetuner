@@ -1,4 +1,3 @@
-import argparse
 import gc
 import json
 import logging
@@ -8,7 +7,6 @@ from pathlib import Path
 import torch
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from transformers.trainer_utils import get_last_checkpoint
 
 from .config import Config
 
@@ -44,7 +42,7 @@ def _load_tokenizer(config: Config) -> AutoTokenizer:
 
 
 def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM, 
-                        perplexity_input_token_ids: list, perplexity_label_token_ids) -> float:
+                        perplexity_input_token_ids: list[int], perplexity_label_token_ids: list[int]) -> float:
     """
     FIM perplexity: Measures model confidence in the ground truth reference middle code.
     (How surprised is the model by the ground truth reference middle code).
@@ -65,7 +63,7 @@ def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM,
         return float('inf')
 
 
-def _generate(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, prompt_token_ids: list) -> list:
+def _generate(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokenizer, prompt_token_ids: list[int]) -> list:
     model.eval()
     prompt_token_ids_tensor = torch.tensor([prompt_token_ids], device=config.device)
     with torch.inference_mode():
@@ -139,7 +137,7 @@ def generate_and_save(config: Config, checkpoint_path: Path):
                 line_counter += 1
                 if line_counter % 10 == 0:
                     _clear_hardware_cache(config)
-                    logger.info(f"Processed Example {line_counter}")
+                    logger.info(f"Processed {line_counter} benchmark examples")
         
         logger.info(f"Successfully generated and saved {line_counter} number of examples to {config.benchmark_evaluation_results_path}.")
 

@@ -11,7 +11,7 @@ from .generate import generate_and_save
 from .benchmark import create_benchmark_dataset
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("src.evaluate.run")
 
 
 def _setup_logger(log_level: str) -> None:
@@ -42,7 +42,7 @@ def _setup_logger(log_level: str) -> None:
 
 
 def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate code comparison")
+    parser = argparse.ArgumentParser(description="Run evaluation")
     parser.add_argument(
         "--log-level",
         type=str,
@@ -79,6 +79,9 @@ def main():
 
     if user_args.overwrite_dataset or not config.benchmark_dataset_path.exists():
         dataset_len = create_benchmark_dataset(config)
+        if checkpoint_path is None:
+            logger.error(f"No checkpoint found under {config.trainer_output_dir_path}")
+            raise RuntimeError("No checkpoint available for evaluation.")
         logger.info(f"Created new benchmark dataset '{config.benchmark_dataset_path}' with '{dataset_len}' examples")
     else:
         logger.info(f"Proceeding with existing file '{config.benchmark_dataset_path}'...")

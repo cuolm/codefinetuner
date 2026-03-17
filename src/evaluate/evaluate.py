@@ -30,8 +30,8 @@ def evaluate_and_save(config: Config) -> None:
                 base_sb = get_sentencebleu(config, ref, base_gen)
                 lora_sb = get_sentencebleu(config, ref, lora_gen)
 
-                base_em = get_exact_match(config, ref, base_gen)
-                lora_em = get_exact_match(config, ref, lora_gen)
+                base_em = get_exact_match(ref, base_gen)
+                lora_em = get_exact_match(ref, lora_gen)
 
                 base_lm = get_line_match(config, ref, base_gen)
                 lora_lm = get_line_match(config, ref, lora_gen)

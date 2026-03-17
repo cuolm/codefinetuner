@@ -71,14 +71,14 @@ def create_benchmark_dataset(config: Config) -> int:
 
     benchmark_examples = []
     added_examples_count = 0
-    for example in shuffled_dataset:
+    for idx, example in enumerate(shuffled_dataset):
         if added_examples_count >= config.benchmark_sample_size:
             break
         
         try:
             fim_parts = _extract_fim_parts(config, tokenizer, example["input_ids"])
         except ValueError:
-            logger.warning(f"Could not extract fim parts from example, skipping") 
+            logger.warning(f"Could not extract fim parts from example {idx}, skipping") 
             continue
 
         if (len(fim_parts["middle_token_ids"]) < config.benchmark_min_fim_middle_tokens   

@@ -11,7 +11,7 @@ from .config import Config
 logger = logging.getLogger("src.evaluate.analyze")
 
 
-def calculate_metric(config, metric_name: str, higher_is_better: bool) -> dict:
+def calculate_metric(config: Config, metric_name: str, higher_is_better: bool) -> dict:
     base_scores, lora_scores = [], []
     
     with open(config.benchmark_evaluation_results_path, 'r') as f:
