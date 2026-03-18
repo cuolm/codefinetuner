@@ -74,6 +74,7 @@ class Config:
     def __post_init__(self):
         self._setup_device_and_precision()
         self._setup_paths()
+        self._ensure_output_paths_exist()
         self.dataset_train_dataset_length = self._get_dataset_length(self.train_dataset_path)
         self.trainer_max_steps = self._calculate_max_steps()
         
@@ -99,6 +100,19 @@ class Config:
         self.trainer_plot_path = self.finetune_outputs_dir_path / "results" / "trainer_loss_plot.png"
         self.lora_adapter_path = self.finetune_outputs_dir_path / "results" / "lora_adapter"
         self.lora_model_path = self.finetune_outputs_dir_path / "results" / "lora_model"
+    
+    def _ensure_output_paths_exist(self) -> None:
+        paths = [
+            self.finetune_outputs_dir_path,
+            self.trainer_checkpoints_dir_path,
+            self.trainer_model_merge_offload_folder_path,
+            self.trainer_log_path, 
+            self.trainer_plot_path,
+            self.lora_adapter_path,
+            self.lora_model_path
+        ]
+        for path in paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
 
     def _get_dataset_length(self, path: Path) -> int:
         """
