@@ -72,7 +72,7 @@ def train_lora_model(
         trainer_fp16 = False 
 
     training_args = TrainingArguments(
-        output_dir=config.trainer_output_dir_path,
+        output_dir=config.trainer_checkpoints_dir_path,
         per_device_train_batch_size=config.trainer_per_device_train_batch_size,
         per_device_eval_batch_size=config.trainer_per_device_eval_batch_size,
         gradient_accumulation_steps=config.trainer_gradient_accumulation_steps, 
@@ -179,14 +179,14 @@ def save_log(config: Config, log_history: List) -> None:
             history["eval"]["steps"].append(entry["step"])
             history["eval"]["epoch"].append(entry.get("epoch"))
 
-    log_path = Path(config.trainer_output_dir_path) / "training_log.json"
+    log_path = config.trainer_log_path 
     with log_path.open("w", encoding="utf-8") as f:
         json.dump(history, f, indent=2)
 
 
 def plot_loss(config: Config) -> None:
-    losses_path = Path(config.trainer_output_dir_path) / "training_log.json"
-    with losses_path.open("r", encoding="utf-8") as f:
+    log_path = config.trainer_log_path 
+    with log_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     plt.figure(figsize=(8, 5))
@@ -202,5 +202,5 @@ def plot_loss(config: Config) -> None:
     plt.title("Training and Evaluation Loss")
     plt.legend()
     plt.grid(True)
-    plt.savefig(Path(config.trainer_output_dir_path) / "loss_plot.png")
+    plt.savefig(config.trainer_plot_path)
     plt.close()

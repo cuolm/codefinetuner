@@ -63,9 +63,12 @@ class Config:
     project_root_path: Path = field(init=False)
     train_dataset_path: Path = field(init=False)
     eval_dataset_path: Path = field(init=False)
+    finetune_outputs_dir_path: Path = field(init=False)
+    trainer_checkpoints_dir_path: Path = field(init=False)
+    trainer_log_path: Path = field(init=False)
+    trainer_plot_path: Path = field(init=False)
     lora_adapter_path: Path = field(init=False)
     lora_model_path: Path = field(init=False)
-    trainer_output_dir_path: Path = field(init=False)
     trainer_model_merge_offload_folder_path: Path = field(init=False)
 
     def __post_init__(self):
@@ -89,10 +92,13 @@ class Config:
         self.project_root_path = Path(__file__).resolve().parents[2]
         self.train_dataset_path = self.project_root_path / "datasets" / "train_dataset.jsonl"
         self.eval_dataset_path = self.project_root_path / "datasets" / "eval_dataset.jsonl"
-        self.trainer_output_dir_path = self.project_root_path / "results"
-        self.lora_adapter_path = self.project_root_path / "lora_adapter"
-        self.lora_model_path = self.project_root_path / "lora_model"
-        self.trainer_model_merge_offload_folder_path = self.project_root_path / "trainer_model_merge_offload_folder"
+        self.finetune_outputs_dir_path = self.project_root_path / "outputs" / "finetune"
+        self.trainer_checkpoints_dir_path = self.finetune_outputs_dir_path / "checkpoints"
+        self.trainer_model_merge_offload_folder_path = self.finetune_outputs_dir_path / "trainer_model_merge_offload_folder"
+        self.trainer_log_path = self.finetune_outputs_dir_path / "results" / "trainer_log.json" 
+        self.trainer_plot_path = self.finetune_outputs_dir_path / "results" / "trainer_loss_plot.png"
+        self.lora_adapter_path = self.finetune_outputs_dir_path / "results" / "lora_adapter"
+        self.lora_model_path = self.finetune_outputs_dir_path / "results" / "lora_model"
 
     def _get_dataset_length(self, path: Path) -> int:
         """

@@ -46,7 +46,7 @@ def _setup_logger(log_level: str) -> None:
     logging.config.dictConfig(logger_config)
 
 
-def _parse_args(config: Config) -> argparse.Namespace:
+def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Start or resume LoRA model training")
     parser.add_argument(
         "--log-level",
@@ -64,7 +64,7 @@ def _parse_args(config: Config) -> argparse.Namespace:
     parser.add_argument(
         "--delete-all-checkpoints",
         action="store_true",
-        help="Delete existing output dir"
+        help="Delete existing checkpoints dir"
     )
     args = parser.parse_args()
 
@@ -90,20 +90,20 @@ def load_datasets(config: Config) -> Tuple[IterableDataset, IterableDataset]:
 
 
 def run(config: Config, checkpoint: str, delete_all_checkpoints: bool) -> None:
-    output_dir = config.trainer_output_dir_path
+    checkpoints_dir = config.trainer_checkpoints_dir_path
     if checkpoint and not delete_all_checkpoints:
         logger.info(f"Resuming from: {checkpoint}")
     elif not checkpoint and delete_all_checkpoints:
-        if output_dir.exists():
-            logger.warning(f"Deleting: {output_dir}")
-            shutil.rmtree(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Cleared: {output_dir}")
+        if checkpoints_dir.exists():
+            logger.warning(f"Deleting: {checkpoints_dir}")
+            shutil.rmtree(checkpoints_dir)
+        checkpoints_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Cleared: {checkpoints_dir}")
     elif checkpoint and delete_all_checkpoints:
         logger.error("Configuration conflict: Cannot resume from a checkpoint while '--delete-all-checkpoints' is set.")
         sys.exit(1)
     else:
-        logger.info(f"Starting fresh training. Existing checkpoints in {output_dir} are preserved.")
+        logger.info(f"Starting fresh training. Existing checkpoints in {checkpoints_dir} are preserved.")
 
     train_dataset, eval_dataset= load_datasets(config)
     logger.info(f"Dataset: {config.dataset_train_dataset_length} train examples, max_steps={config.trainer_max_steps}")
@@ -124,7 +124,7 @@ def run(config: Config, checkpoint: str, delete_all_checkpoints: bool) -> None:
 
 def main() -> None:
     config = Config()
-    user_args = _parse_args(config)
+    user_args = _parse_args()
     _setup_logger(user_args.log_level)
     run(
         config=config,
