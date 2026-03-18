@@ -164,8 +164,6 @@ def _mask_labels(config: Config, input_ids: List[List[int]], tokenizer: AutoToke
 
 
 def _save_tokenized_batch_as_jsonl(file_path: Path, batch: Mapping[str, List[List[int]]]) -> None:
-    file_path.parent.mkdir(parents=True, exist_ok=True)  # ensure file parent directories exist
-
     with open(file_path, 'a', encoding='utf-8') as f:
         batch_size = len(batch['input_ids'])
         for i in range(batch_size):

@@ -98,7 +98,7 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _clear_existing_datasets(config: Config) -> None:
-    for file in [config.train_path, config.eval_path, config.test_path]:
+    for file in [config.train_dataset_path, config.eval_dataset_path, config.test_dataset_path]:
         if file.exists():
             file.unlink()
             logger.info(f"Deleted old dataset: {file}")
@@ -146,9 +146,9 @@ def run(config: Config, split_mode: str) -> None:
     eval_fim_examples_iter = create_fim_examples(config, eval_code_blocks_iter, bytes_per_token_ratio)
     test_fim_examples_iter = create_fim_examples(config, test_code_blocks_iter, bytes_per_token_ratio)
     
-    tokenize_and_save_fim_examples(config, config.train_path, train_fim_examples_iter, tokenizer)
-    tokenize_and_save_fim_examples(config, config.eval_path, eval_fim_examples_iter, tokenizer)
-    tokenize_and_save_fim_examples(config, config.test_path, test_fim_examples_iter, tokenizer)
+    tokenize_and_save_fim_examples(config, config.train_dataset_path, train_fim_examples_iter, tokenizer)
+    tokenize_and_save_fim_examples(config, config.eval_dataset_path, eval_fim_examples_iter, tokenizer)
+    tokenize_and_save_fim_examples(config, config.test_dataset_path, test_fim_examples_iter, tokenizer)
 
     logger.info("Saved train, eval, test datasets to disk")  
 

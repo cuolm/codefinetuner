@@ -40,9 +40,9 @@ class Config:
     # --- Paths ---
     project_root_path: Path = field(init=False) 
     raw_data_path: Path | None = None 
-    train_path: Path = field(init=False)
-    eval_path: Path = field(init=False)
-    test_path: Path = field(init=False)
+    train_dataset_path: Path = field(init=False)
+    eval_dataset_path: Path = field(init=False)
+    test_dataset_path: Path = field(init=False)
 
     # --- Randomization ---
     rng_seed: int = 0 
@@ -52,6 +52,7 @@ class Config:
     def __post_init__(self):
         self._validate_ratio()
         self._setup_paths()
+        self._ensure_output_paths_exist()
         self._load_language_blocks()
         self._init_tree_sitter_parser()
         self.rng = np.random.default_rng(seed=self.rng_seed)
@@ -66,10 +67,20 @@ class Config:
         if self.raw_data_path is None:
             self.raw_data_path = self.project_root_path / "data"
         self.preprocess_outputs_dir_path = self.project_root_path / "outputs" / "preprocess"
-        self.train_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "train_dataset.jsonl"
-        self.eval_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "eval_dataset.jsonl"
-        self.test_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "test_dataset.jsonl"
+        self.train_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "train_dataset.jsonl"
+        self.eval_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "eval_dataset.jsonl"
+        self.test_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "test_dataset.jsonl"
 
+    def _ensure_output_paths_exist(self):
+        paths = [
+            self.preprocess_outputs_dir_path,
+            self.train_dataset_path,
+            self.eval_dataset_path,
+            self.test_dataset_path
+        ]
+
+        for path in paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
  
     def _load_language_blocks(self) -> None:
         blocks_path = self.project_root_path / "config" / "language_block_definitions.json"
