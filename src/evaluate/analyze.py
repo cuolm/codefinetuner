@@ -134,7 +134,6 @@ def plot_metric_and_save(metric_stats_np: dict, metric_name: str, plot_path: Pat
         if use_limit:
             axs[1, 1].text(0.95, 0.95, f'Note: |Diff| > {y_axis_limit} hidden', transform=axs[1, 1].transAxes, ha='right', va='top', fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
 
-    plot_path.parent.mkdir(parents=True, exist_ok=True)
     plt.tight_layout()
     plt.savefig(plot_path)
     plt.close(fig)

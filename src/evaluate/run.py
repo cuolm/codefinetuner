@@ -76,21 +76,29 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _ensure_checkpoints(config: Config) -> None:
+    checkpoints_dir = config.trainer_checkpoints_dir_path
+    if not checkpoints_dir.exists():
+        logger.error(f"Checkpoint directory does not exist: {checkpoints_dir}")
+        raise RuntimeError("Checkpoint directory not found.")
+    if not list(checkpoints_dir.iterdir()):
+        logger.error(f"Checkpoint directory is empty: {checkpoints_dir}")
+        raise RuntimeError("No checkpoints in directory.")
+
+
 def run(config: Config, checkpoint: str, plot_only: bool, overwrite_dataset: bool) -> None:
     if overwrite_dataset or not config.benchmark_dataset_path.exists():
         dataset_len = create_benchmark_dataset(config)
-        if checkpoint_path is None:
-            logger.error(f"No checkpoint found under {config.trainer_output_dir_path}")
-            raise RuntimeError("No checkpoint available for evaluation.")
         logger.info(f"Created new benchmark dataset '{config.benchmark_dataset_path}' with '{dataset_len}' examples")
     else:
         logger.info(f"Proceeding with existing file '{config.benchmark_dataset_path}'...")
     
     if not plot_only: 
+        _ensure_checkpoints(config)
         if checkpoint == "last":
-            checkpoint_path = get_last_checkpoint(config.trainer_output_dir_path)
+            checkpoint_path = get_last_checkpoint(config.trainer_checkpoints_dir_path)
         else:
-            checkpoint_path = config.trainer_output_dir_path / checkpoint
+            checkpoint_path = config.trainer_checkpoints_dir_path / checkpoint
         generate_and_save(config, checkpoint_path)
         evaluate_and_save(config)
 

@@ -63,8 +63,9 @@ class Config:
 
     # --- Paths ---
     project_root_path: Path = field(init=False)
-    trainer_output_dir_path: Path = field(init=False)
+    trainer_checkpoints_dir_path: Path = field(init=False)
     test_dataset_path: Path = field(init=False)  
+    evaluate_outputs_dir_path: Path = field(init=False)
     benchmark_dataset_path: Path = field(init=False)
     benchmark_evaluation_results_dir: Path = field(init=False)
     benchmark_evaluation_results_path: Path = field(init=False)
@@ -73,6 +74,7 @@ class Config:
     def __post_init__(self):
         self._setup_device_and_precision()
         self._setup_paths()
+        self._ensure_output_paths_exist()
         self._validate_metric_weights()
 
     def _setup_device_and_precision(self):
@@ -98,12 +100,24 @@ class Config:
 
     def _setup_paths(self):
         self.project_root_path = Path(__file__).resolve().parent.parent.parent
-        self.trainer_output_dir_path = self.project_root_path / "outputs" / "finetune" / "results"
-        self.test_dataset_path = self.project_root_path / "datasets" / "test_dataset.jsonl"
-        self.benchmark_dataset_path = self.project_root_path / "benchmarks" / "benchmark_dataset.jsonl"
-        self.benchmark_evaluation_results_dir = self.project_root_path / "benchmarks" / "results"
-        self.benchmark_evaluation_results_path = self.project_root_path / "benchmarks" / "results" / "evaluation_results.jsonl"
-        self.benchmark_analysis_results_path = self.project_root_path / "benchmarks" / "results" / "analysis_results.json"
+        self.trainer_checkpoints_dir_path = self.project_root_path / "outputs" / "finetune" / "checkpoints"
+        self.test_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "test_dataset.jsonl"
+        self.evaluate_outputs_dir_path = self.project_root_path / "outputs" / "evaluate"
+        self.benchmark_dataset_path = self.evaluate_outputs_dir_path / "datasets" / "benchmark_dataset.jsonl"
+        self.benchmark_evaluation_results_dir = self.evaluate_outputs_dir_path / "results"
+        self.benchmark_evaluation_results_path = self.benchmark_evaluation_results_dir / "evaluation_results.jsonl"
+        self.benchmark_analysis_results_path = self.benchmark_evaluation_results_dir / "analysis_results.json"
+
+    def _ensure_output_paths_exist(self) -> None:
+        paths = [
+            self.evaluate_outputs_dir_path,
+            self.benchmark_dataset_path,
+            self.benchmark_evaluation_results_dir,
+            self.benchmark_evaluation_results_path,
+            self.benchmark_analysis_results_path,
+        ]
+        for path in paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
 
     @property
     def metric_configs(self) -> list[tuple[str, bool]]:
