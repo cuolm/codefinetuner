@@ -11,7 +11,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from .config import Config
 
 
-logger = logging.getLogger("src.evaluate.generate")
+logger = logging.getLogger(__name__)
 
 
 def _load_lora_model(config: Config, checkpoint_path: Path) ->AutoModelForCausalLM:

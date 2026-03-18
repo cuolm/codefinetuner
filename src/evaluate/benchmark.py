@@ -7,7 +7,7 @@ from transformers import AutoTokenizer
 from .config import Config
 
 
-logger = logging.getLogger("src.evaluate.benchmark")
+logger = logging.getLogger(__name__)
 
 
 def _extract_fim_parts(config: Config, tokenizer: AutoTokenizer, example_token_ids: list[int]) -> dict:

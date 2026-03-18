@@ -10,7 +10,7 @@ from .config import Config
 from .extractor import auto_create_split_paths, get_code_blocks_from_paths
 
 
-logger = logging.getLogger("src.preprocess.processor")
+logger = logging.getLogger(__name__)
 
 
 def _extract_subblock_ranges(config: Config, node: ts.Node, base_offset: int) -> list[Tuple[int, int]]:

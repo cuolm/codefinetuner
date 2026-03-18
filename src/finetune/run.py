@@ -12,7 +12,7 @@ from .model import load_and_configure_lora_model
 from .train import plot_loss, save_log, train_lora_model, merge_lora_and_save
 
 
-logger = logging.getLogger("src.finetune.run")
+logger = logging.getLogger(__name__)
 
 
 def _setup_logger(log_level: str) -> None:

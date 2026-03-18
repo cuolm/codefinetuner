@@ -7,7 +7,7 @@ from typing import List
 import torch
 
 
-logger = logging.getLogger("src.finetune.config")
+logger = logging.getLogger(__name__)
 
 
 @dataclass

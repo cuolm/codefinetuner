@@ -9,7 +9,7 @@ from tree_sitter_language_pack import get_parser
 from .config import Config
 
 
-logger = logging.getLogger("src.preprocess.extractor")
+logger = logging.getLogger(__name__)
 
 
 def get_custom_tree_sitter_parser(tree_sitter_lib_path: Path, source_files_language: str) -> ts.Parser:

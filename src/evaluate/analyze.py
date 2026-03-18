@@ -8,7 +8,7 @@ from pathlib import Path
 from .config import Config
 
 
-logger = logging.getLogger("src.evaluate.analyze")
+logger = logging.getLogger(__name__)
 
 
 def analyze_metric(config: Config, metric_name: str, higher_is_better: bool) -> dict:

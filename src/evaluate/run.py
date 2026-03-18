@@ -11,7 +11,7 @@ from .generate import generate_and_save
 from .benchmark import create_benchmark_dataset
 
 
-logger = logging.getLogger("src.evaluate.run")
+logger = logging.getLogger(__name__)
 
 
 def _setup_logger(log_level: str) -> None:

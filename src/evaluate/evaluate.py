@@ -5,7 +5,7 @@ from .config import Config
 from .metrics import get_codebleu, get_exact_match, get_line_match, get_sentencebleu
 
 
-logger = logging.getLogger("src.evaluate.evaluate")
+logger = logging.getLogger(__name__)
 
 
 def evaluate_and_save(config: Config) -> None:

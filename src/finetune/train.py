@@ -15,7 +15,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingA
 from .config import Config
 
 
-logger = logging.getLogger("src.finetune.train")
+logger = logging.getLogger(__name__)
 
 
 class FIMDataCollator:
@@ -143,8 +143,8 @@ def merge_lora_and_save(config: Config, tokenizer: AutoTokenizer) -> None:
     )
 
     lora_model = PeftModel.from_pretrained(
-        base_model, 
-        config.lora_adapter_path,
+        model=base_model, 
+        model_id=config.lora_adapter_path,
         offload_folder=str(config.trainer_model_merge_offload_folder_path)
     )
 

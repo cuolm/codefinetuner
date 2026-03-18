@@ -7,7 +7,7 @@ from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 from .config import Config
 
 
-logger = logging.getLogger("src.finetune.model")
+logger = logging.getLogger(__name__)
 
 
 def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:

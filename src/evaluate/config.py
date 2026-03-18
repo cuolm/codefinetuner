@@ -7,13 +7,13 @@ import nltk
 import torch
 
 
-logger = logging.getLogger("src.evaluate.config")
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class Config:
     # --- Model ---
-    model_name: str = "Qwen/Qwen2.5-Coder-7B"
+    model_name: str = "Qwen/Qwen2.5-Coder-1.5B"
     model_dtype: torch.dtype = field(init=False)
     fim_prefix_token: str = "<|fim_prefix|>"
     fim_suffix_token: str = "<|fim_suffix|>"
