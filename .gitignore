@@ -13,14 +13,8 @@ wheels/
 .vscode
 
 # Project specific 
-datasets/
+outputs/
 data/
-testing/
-lora_adapter/
-lora_model*
-base_model*
-results/
+tests/
 backup/
-jupyter_nb/
 TODO.md
-benchmarks/
