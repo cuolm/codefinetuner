@@ -90,8 +90,8 @@ class Config:
 
     def _setup_paths(self):
         self.project_root_path = Path(__file__).resolve().parents[2]
-        self.train_dataset_path = self.project_root_path / "datasets" / "train_dataset.jsonl"
-        self.eval_dataset_path = self.project_root_path / "datasets" / "eval_dataset.jsonl"
+        self.train_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "train_dataset.jsonl"
+        self.eval_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "eval_dataset.jsonl"
         self.finetune_outputs_dir_path = self.project_root_path / "outputs" / "finetune"
         self.trainer_checkpoints_dir_path = self.finetune_outputs_dir_path / "checkpoints"
         self.trainer_model_merge_offload_folder_path = self.finetune_outputs_dir_path / "trainer_model_merge_offload_folder"

@@ -65,9 +65,10 @@ class Config:
         self.project_root_path = Path(__file__).resolve().parents[2]
         if self.raw_data_path is None:
             self.raw_data_path = self.project_root_path / "data"
-        self.train_path = self.project_root_path / "datasets" / "train_dataset.jsonl"
-        self.eval_path = self.project_root_path / "datasets" / "eval_dataset.jsonl"
-        self.test_path = self.project_root_path / "datasets" / "test_dataset.jsonl"
+        self.preprocess_outputs_dir_path = self.project_root_path / "outputs" / "preprocess"
+        self.train_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "train_dataset.jsonl"
+        self.eval_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "eval_dataset.jsonl"
+        self.test_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "test_dataset.jsonl"
 
  
     def _load_language_blocks(self) -> None:

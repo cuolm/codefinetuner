@@ -98,7 +98,7 @@ class Config:
 
     def _setup_paths(self):
         self.project_root_path = Path(__file__).resolve().parent.parent.parent
-        self.trainer_output_dir_path = self.project_root_path / "results"
+        self.trainer_output_dir_path = self.project_root_path / "outputs" / "finetune" / "results"
         self.test_dataset_path = self.project_root_path / "datasets" / "test_dataset.jsonl"
         self.benchmark_dataset_path = self.project_root_path / "benchmarks" / "benchmark_dataset.jsonl"
         self.benchmark_evaluation_results_dir = self.project_root_path / "benchmarks" / "results"
