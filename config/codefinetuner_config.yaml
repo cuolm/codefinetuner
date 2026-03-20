@@ -31,13 +31,13 @@ preprocess:
 finetune:
   <<: *globals
   model_attn_implementation: "sdpa"
-  checkpoint: null
-  delete_all_checkpoints: false
   lora_r: 32
   lora_alpha: 64
   lora_dropout: 0.1
   lora_bias: "none"
   lora_target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "down_proj", "up_proj"]
+  trainer_resume_from_checkpoint: null  # null->fresh start, "last"->take last checkpoint
+  trainer_clear_checkpoint_dir: false
   trainer_num_train_epochs: 1
   trainer_per_device_train_batch_size: 2
   trainer_per_device_eval_batch_size: 2

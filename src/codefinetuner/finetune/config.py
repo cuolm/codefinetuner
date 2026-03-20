@@ -1,10 +1,11 @@
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import List
+from typing import List, Any
 
 import torch
+from omegaconf import OmegaConf, MISSING
 
 
 logger = logging.getLogger(__name__)
@@ -12,11 +13,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Config:
+# --- Mandatory Parameters ---
+    model_name: str = MISSING
+    fim_pad_token: str = MISSING
+
     # --- Model Settings ---
-    model_name: str = "Qwen/Qwen2.5-Coder-1.5B"
     model_attn_implementation: str = "sdpa"  # sdpa = built-in PyTorch implementation of scaled dot product attention, imporves performance and memory efficiency
-    model_dtype: torch.dtype = field(init=False)
-    fim_pad_token: str = "<|fim_pad|>"
+    model_dtype: Any = field(init=False)    # changed to Any to bypass OmegaConf validation
 
     # --- LoRA Settings ---
     lora_r: int = 32
@@ -29,6 +32,8 @@ class Config:
     ])
 
     # --- Trainer Hyperparameters ---
+    trainer_resume_from_checkpoint: str | None = "last"
+    trainer_clear_checkpoint_dir: bool = False
     trainer_num_train_epochs: int = 1
     trainer_per_device_train_batch_size: int = 2
     trainer_per_device_eval_batch_size: int = 2
@@ -71,6 +76,35 @@ class Config:
     lora_model_path: Path = field(init=False)
     trainer_model_merge_offload_folder_path: Path = field(init=False)
 
+    @classmethod
+    def load_from_yaml(cls, yaml_path: Path) -> "Config":
+        if not yaml_path.exists():
+            raise FileNotFoundError(f"Config file not found: {yaml_path}")
+        
+        config_dict = OmegaConf.structured(cls)
+        try:
+            yaml_file_node = OmegaConf.load(yaml_path)
+        except Exception:
+            err_msg = f"Failed to load YAML config {yaml_path}" 
+            logger.exception(err_msg)
+            raise ValueError(err_msg)
+
+        yaml_file_node = OmegaConf.load(yaml_path) 
+        yaml_file_dict = OmegaConf.to_container(yaml_file_node, resolve=True)
+        yaml_finetune_dict = yaml_file_dict.get("finetune", {})
+
+        yaml_finetune_valid_dict = {}
+        # Filter YAML fields to include only those defined in the Config dataclass.
+        # This prevents OmegaConf from raising an AttributeError when encountering 
+        # global YAML anchors or keys not present in the current Config dataclass. 
+        for field in fields(cls):
+            if field.name in yaml_finetune_dict:
+                yaml_finetune_valid_dict[field.name] = yaml_finetune_dict[field.name]
+
+        merged_config_dict = OmegaConf.merge(config_dict, yaml_finetune_valid_dict)
+        
+        return OmegaConf.to_object(merged_config_dict)
+
     def __post_init__(self):
         self._setup_device_and_precision()
         self._setup_paths()
@@ -90,7 +124,7 @@ class Config:
             self.model_dtype = torch.float32
 
     def _setup_paths(self):
-        self.project_root_path = Path(__file__).resolve().parents[2]
+        self.project_root_path = Path(__file__).resolve().parents[3]
         self.train_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "train_dataset.jsonl"
         self.eval_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "eval_dataset.jsonl"
         self.finetune_outputs_dir_path = self.project_root_path / "outputs" / "finetune"

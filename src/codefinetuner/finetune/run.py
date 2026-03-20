@@ -3,6 +3,7 @@ import logging.config
 import shutil
 import sys
 from typing import Tuple
+from pathlib import Path
 
 from datasets import Features, IterableDataset, Sequence, Value, load_dataset
 from transformers import AutoTokenizer
@@ -49,26 +50,39 @@ def _setup_logger(log_level: str) -> None:
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Start or resume LoRA model training")
     parser.add_argument(
+        "--config",
+        type=Path,
+        required=True,
+        help="YAML config file path with 'finetune:' section. All Config.MISSING fields must be provided."
+    )
+    parser.add_argument(
         "--log-level",
         type=str,
         default="INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Logging level.",
     )
-    parser.add_argument(
-        "--checkpoint",
-        type=str,
-        default=None,
-        help='Resume from "last" or path'
-    )
-    parser.add_argument(
-        "--delete-all-checkpoints",
-        action="store_true",
-        help="Delete existing checkpoints dir"
-    )
     args = parser.parse_args()
-
     return args
+
+
+def _ensure_clean_checkpoint_dir(config: Config) -> None:
+    checkpoints_dir = config.trainer_checkpoints_dir_path
+    checkpoint = config.trainer_resume_from_checkpoint
+    clear = config.trainer_clear_checkpoint_dir
+    if checkpoint and not clear:
+        logger.info(f"Resuming from: {checkpoint}")
+    elif not checkpoint and clear: 
+        if checkpoints_dir.exists():
+            logger.warning(f"Deleting: {checkpoints_dir}")
+            shutil.rmtree(checkpoints_dir)
+        checkpoints_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Cleared: {checkpoints_dir}")
+    elif checkpoint and clear: 
+        logger.error("Configuration conflict: Cannot resume from a checkpoint while '--delete-all-checkpoints' is set.")
+        sys.exit(1)
+    else:
+        logger.info(f"Starting fresh training. Existing checkpoints in {checkpoints_dir} are preserved.")
 
 
 def load_datasets(config: Config) -> Tuple[IterableDataset, IterableDataset]:
@@ -89,21 +103,8 @@ def load_datasets(config: Config) -> Tuple[IterableDataset, IterableDataset]:
     return train_dataset, eval_dataset 
 
 
-def run(config: Config, checkpoint: str, delete_all_checkpoints: bool) -> None:
-    checkpoints_dir = config.trainer_checkpoints_dir_path
-    if checkpoint and not delete_all_checkpoints:
-        logger.info(f"Resuming from: {checkpoint}")
-    elif not checkpoint and delete_all_checkpoints:
-        if checkpoints_dir.exists():
-            logger.warning(f"Deleting: {checkpoints_dir}")
-            shutil.rmtree(checkpoints_dir)
-        checkpoints_dir.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Cleared: {checkpoints_dir}")
-    elif checkpoint and delete_all_checkpoints:
-        logger.error("Configuration conflict: Cannot resume from a checkpoint while '--delete-all-checkpoints' is set.")
-        sys.exit(1)
-    else:
-        logger.info(f"Starting fresh training. Existing checkpoints in {checkpoints_dir} are preserved.")
+def run(config: Config) -> None:
+    _ensure_clean_checkpoint_dir(config)
 
     train_dataset, eval_dataset= load_datasets(config)
     logger.info(f"Dataset: {config.dataset_train_dataset_length} train examples, max_steps={config.trainer_max_steps}")
@@ -115,7 +116,7 @@ def run(config: Config, checkpoint: str, delete_all_checkpoints: bool) -> None:
     tokenizer.pad_token = config.fim_pad_token
     tokenizer.padding_side = "right"
 
-    log_history = train_lora_model(config, checkpoint, lora_model, tokenizer, train_dataset, eval_dataset)
+    log_history = train_lora_model(config, lora_model, tokenizer, train_dataset, eval_dataset)
     merge_lora_and_save(config, tokenizer)
     save_log(config, log_history)
 
@@ -123,14 +124,10 @@ def run(config: Config, checkpoint: str, delete_all_checkpoints: bool) -> None:
 
 
 def main() -> None:
-    config = Config()
     user_args = _parse_args()
     _setup_logger(user_args.log_level)
-    run(
-        config=config,
-        checkpoint=user_args.checkpoint,
-        delete_all_checkpoints=user_args.delete_all_checkpoints
-    )
+    finetune_config = Config.load_from_yaml(user_args.config)
+    run(finetune_config)
 
 
 if __name__ == "__main__":

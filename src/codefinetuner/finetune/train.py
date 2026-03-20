@@ -53,7 +53,6 @@ class FIMDataCollator:
 
 def train_lora_model(
         config: Config,
-        checkpoint: str,
         lora_model: PeftModel,
         tokenizer: AutoTokenizer,
         train_dataset: IterableDataset,
@@ -108,6 +107,7 @@ def train_lora_model(
         data_collator = data_collator
     )
 
+    checkpoint = config.trainer_resume_from_checkpoint
     if checkpoint == "last":
         trainer.train(resume_from_checkpoint=True)
     elif checkpoint is not None:
