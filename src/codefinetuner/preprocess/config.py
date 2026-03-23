@@ -140,11 +140,11 @@ class Config:
     def _init_tree_sitter_parser(self) -> None:
         if self.tree_sitter_parser_path:
             logger.info(f"Loading custom tree-sitter parser from {self.tree_sitter_parser_path}")
-            from .extractor import get_custom_tree_sitter_parser
+            from .extract import get_custom_tree_sitter_parser
             self.tree_sitter_parser = get_custom_tree_sitter_parser(self.tree_sitter_parser_path, self.data_language)
         else:
             logger.info(f"Loading tree-sitter language pack parser {self.data_language}")
-            from .extractor import get_tree_sitter_language_pack_parser
+            from .extract import get_tree_sitter_language_pack_parser
             self.tree_sitter_parser = get_tree_sitter_language_pack_parser(self.data_language)
         
         if self.tree_sitter_parser is None:

@@ -7,7 +7,7 @@ from transformers import AutoTokenizer
 import tree_sitter as ts
 
 from .config import Config
-from .extractor import auto_create_split_paths, get_code_blocks_from_paths
+from .extract import auto_create_split_paths, get_code_blocks_from_paths
 
 
 logger = logging.getLogger(__name__)
