@@ -13,7 +13,7 @@ globals: &globals
 # Preprocess stage - inherits globals + local params
 preprocess:
   <<: *globals
-  split_mode: "auto"
+  split_mode: "manual"
   train_ratio: 0.8
   eval_ratio: 0.1
   test_ratio: 0.1
@@ -48,7 +48,6 @@ finetune:
   trainer_lr_scheduler_type: "cosine"
   trainer_warmup_steps: 50
   trainer_gradient_checkpointing: true
-  trainer_log_level: "info"
   trainer_logging_steps: 10
   trainer_eval_strategy: "steps"
   trainer_eval_steps: 100
@@ -80,6 +79,6 @@ evaluate:
   sentencebleu_ngram_weight_3: 0.25
   sentencebleu_ngram_weight_4: 0.25
   line_match_number_of_lines: 2
-  checkpoint: "last"
+  trainer_checkpoint: "last"
   plot_only: false
-  overwrite_dataset: false
+  benchmark_use_existing_dataset: false

@@ -1,10 +1,12 @@
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
+from typing import Any
 
 import nltk
 import torch
+from omegaconf import OmegaConf, MISSING
 
 
 logger = logging.getLogger(__name__)
@@ -12,14 +14,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Config:
-    # --- Model ---
-    model_name: str = "Qwen/Qwen2.5-Coder-1.5B"
-    model_dtype: torch.dtype = field(init=False)
-    fim_prefix_token: str = "<|fim_prefix|>"
-    fim_suffix_token: str = "<|fim_suffix|>"
-    fim_middle_token: str = "<|fim_middle|>"
-    fim_pad_token: str = "<|fim_pad|>"
-    eos_token: str = "<|endoftext|>"
+    # --- Model (Mandatory Parameters) ---
+    model_name: str = MISSING  
+    fim_prefix_token: str = MISSING
+    fim_suffix_token: str = MISSING 
+    fim_middle_token: str = MISSING 
+    fim_pad_token: str = MISSING 
+    eos_token: str = MISSING 
 
     # --- Benchmark ---
     benchmark_sample_size: int = 4
@@ -57,8 +58,14 @@ class Config:
     line_match_number_of_lines: int = 2  
     perplexity_name: str = "perplexity"
 
+    # --- Execution Controls ---
+    trainer_checkpoint: str = "last"  # "last"->use last checkpoint in  trainer_checkpoints_dir_path
+    plot_only: bool = False  # "skips" generate and evaluate, analyze only
+    benchmark_use_existing_dataset: bool = False
+
     # --- Hardware Configuration ---
     device: str = field(init=False)
+    model_dtype: Any = field(init=False)  # # type hint Any because omegaconf does not support torch.dtype 
     _nltk_initialized: bool = field(init=False, default=False)
 
     # --- Paths ---
@@ -71,13 +78,41 @@ class Config:
     benchmark_evaluation_results_path: Path = field(init=False)
     benchmark_analysis_results_path: Path = field(init=False)
 
-    def __post_init__(self):
+    @classmethod
+    def load_from_yaml(cls, yaml_path: Path) -> "Config":
+        if not yaml_path.exists():
+            raise FileNotFoundError(f"Configuration file not found at: {yaml_path}")
+        
+        logger.info(f"Loading configuration from {yaml_path}")
+        config_dict = OmegaConf.structured(cls)
+        try:
+            yaml_file_node = OmegaConf.load(yaml_path)
+        except Exception as e:
+            raise ValueError(f"Failed to load YAML config {yaml_path}") from e
+
+        yaml_file_dict = OmegaConf.to_container(yaml_file_node, resolve=True)
+        yaml_evaluate_dict = yaml_file_dict.get("evaluate", {})
+
+        yaml_evaluate_valid_dict = {}
+        # Filter YAML fields to include only those defined in the Config dataclass.
+        # This prevents OmegaConf from raising an AttributeError when encountering 
+        # global YAML anchors or keys not present in the current Config dataclass. 
+        for field in fields(cls):
+            if field.name in yaml_evaluate_dict:
+                yaml_evaluate_valid_dict[field.name] = yaml_evaluate_dict[field.name]
+        logger.debug(f"Filtered YAML configuration: {yaml_evaluate_valid_dict}")
+
+        merged_config_dict = OmegaConf.merge(config_dict, yaml_evaluate_valid_dict)
+        return OmegaConf.to_object(merged_config_dict)
+
+    def __post_init__(self) -> None:
         self._setup_device_and_precision()
         self._setup_paths()
         self._ensure_output_paths_exist()
         self._validate_metric_weights()
+        logger.debug("Config initialization complete.")
 
-    def _setup_device_and_precision(self):
+    def _setup_device_and_precision(self) -> None:
         if torch.cuda.is_available():
             self.device = "cuda"
             self.model_dtype = torch.bfloat16
@@ -87,8 +122,9 @@ class Config:
         else:
             self.device = "cpu"
             self.model_dtype = torch.float32
+        logger.info(f"Execution environment: device={self.device}, dtype={self.model_dtype}")
         
-    def _validate_metric_weights(self):
+    def _validate_metric_weights(self) -> None:
         codebleu_total_weight = (self.codebleu_ngram_weight + self.codebleu_weighted_ngram_weight + 
                                  self.codebleu_syntax_ast_weight + self.codebleu_dataflow_weight)
         if not math.isclose(codebleu_total_weight, 1.0, rel_tol=1e-6):
@@ -98,8 +134,8 @@ class Config:
         if not math.isclose(sentencebleu_total_weight, 1.0, rel_tol=1e-6):
             raise ValueError(f"SentenceBLEU weights must sum to 1.0, got {sentencebleu_total_weight}")
 
-    def _setup_paths(self):
-        self.project_root_path = Path(__file__).resolve().parent.parent.parent
+    def _setup_paths(self) -> None:
+        self.project_root_path =  Path(__file__).resolve().parents[3]
         self.trainer_checkpoints_dir_path = self.project_root_path / "outputs" / "finetune" / "checkpoints"
         self.test_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "test_dataset.jsonl"
         self.evaluate_outputs_dir_path = self.project_root_path / "outputs" / "evaluate"
@@ -107,6 +143,7 @@ class Config:
         self.benchmark_evaluation_results_dir = self.evaluate_outputs_dir_path / "results"
         self.benchmark_evaluation_results_path = self.benchmark_evaluation_results_dir / "evaluation_results.jsonl"
         self.benchmark_analysis_results_path = self.benchmark_evaluation_results_dir / "analysis_results.json"
+        logger.debug(f"Resolved project root: {self.project_root_path}")
 
     def _ensure_output_paths_exist(self) -> None:
         paths = [
@@ -117,7 +154,11 @@ class Config:
             self.benchmark_analysis_results_path,
         ]
         for path in paths:
-            path.parent.mkdir(parents=True, exist_ok=True)
+            if not path.parent.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                logger.debug(f"Created parent directory: {path.parent}")
+            else:
+                logger.debug(f"Parent directory already exists: {path.parent}")
 
     @property
     def metric_configs(self) -> list[tuple[str, bool]]:
@@ -130,9 +171,14 @@ class Config:
         ]
      
     def ensure_nltk_initialized(self) -> None:
-        if not self._nltk_initialized:
-            logger.info("Initializing NLTK data (punkt, punkt_tab)...")
+        if self._nltk_initialized:
+            return
+
+        logger.info("Initializing NLTK data (punkt, punkt_tab)...")
+        try:
             nltk.download('punkt', quiet=True)  
             nltk.download('punkt_tab', quiet=True)
             self._nltk_initialized = True
             logger.info("NLTK data initialized successfully.")
+        except Exception:
+            raise RuntimeError(f"NLTK initializerion failed." )

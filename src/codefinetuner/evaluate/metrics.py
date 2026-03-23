@@ -77,7 +77,7 @@ def get_codebleu(config: Config, reference: str, prediction: str) -> tuple[float
         return (float(result['codebleu']), True)
         
     except Exception as e:
-        logger.exception(f"ERROR in CodeBLEU calculation: {e}")
+        logger.warning(f"CodeBLEU calculation failed, returning (0.0, False): {e}")
         return (0.0, False)
 
 
@@ -113,7 +113,7 @@ def get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
         return float(score)
         
     except Exception as e:
-        logger.exception(f"ERROR in SentenceBLEU calculation: {e}")
+        logger.warning(f"SentenceBLEU calculation failed, returning 0.0: {e}")
         return 0.0
 
 
@@ -129,7 +129,7 @@ def get_exact_match(reference: str, prediction: str) -> float:
         else:
             return 0.0
     except Exception as e:
-        logger.exception(f"ERROR in exact match calculation: {e}")
+        logger.warning(f"Exact match calculation failed, returning 0.0: {e}")
         return 0.0
 
 
@@ -156,5 +156,5 @@ def get_line_match(config: Config, reference: str, prediction: str) -> float:
         else:
             return 0.0
     except Exception as e:
-        logger.exception(f"Error in line match: {e}")
+        logger.warning(f"Line match calculation failed, returning 0.0: {e}")
         return 0.0

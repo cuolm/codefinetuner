@@ -59,7 +59,7 @@ def _get_fim_perplexity(config: Config, model: AutoModelForCausalLM,
         return math.exp(loss.item())
         
     except Exception as e:
-        logger.exception(f"ERROR in perplexity calculation: {e}")
+        logger.warning(f"Perplexity calcualtin failed, returning inf: {e}")
         return float('inf')
 
 
@@ -99,8 +99,8 @@ def generate_and_save(config: Config, checkpoint_path: Path):
     fim_suffix_token_id = tokenizer.convert_tokens_to_ids(config.fim_suffix_token)
     fim_middle_token_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
     
+    line_counter = 0
     try:
-        line_counter = 0
         with config.benchmark_dataset_path.open("r") as benchmark_dataset_file, \
             config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
             
@@ -139,8 +139,7 @@ def generate_and_save(config: Config, checkpoint_path: Path):
                     _clear_hardware_cache(config)
                     logger.info(f"Processed {line_counter} benchmark examples")
         
-        logger.info(f"Successfully generated and saved {line_counter} number of examples to {config.benchmark_evaluation_results_path}.")
-
-    except Exception:
-        logger.exception("Generation failed.")
-        raise
+    except Exception as e:
+        raise RuntimeError(f"Generation failed at example {line_counter}: {e}") from e
+    
+    logger.info(f"Successfully generated and saved {line_counter} number of examples to {config.benchmark_evaluation_results_path}.")

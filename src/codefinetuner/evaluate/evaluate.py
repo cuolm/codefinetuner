@@ -12,11 +12,11 @@ def evaluate_and_save(config: Config) -> None:
     results_path = config.benchmark_evaluation_results_path 
     temp_path = results_path.with_name(f"{results_path.name}.tmp")
 
+    line_counter = 0
     try:
         with results_path.open("r") as evaluation_results_file, \
              temp_path.open("w") as tmp_file:
             
-            line_counter = 0
             for line in evaluation_results_file:
                 result = json.loads(line)
 
@@ -57,8 +57,7 @@ def evaluate_and_save(config: Config) -> None:
         temp_path.replace(results_path)
         logger.info(f"Successfully evaluated and saved {line_counter} examples to {config.benchmark_evaluation_results_path}.")
 
-    except Exception:
+    except Exception as e:
         if temp_path.exists():
             temp_path.unlink()
-        logger.exception(f"Evaluation failed.")
-        raise
+        raise RuntimeError(f"Evaluation failed at example {line_counter}: {e}") from e

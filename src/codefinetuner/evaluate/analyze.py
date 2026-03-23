@@ -23,7 +23,7 @@ def analyze_metric(config: Config, metric_name: str, higher_is_better: bool) -> 
             lora_scores.append(evaluation_example[f'lora_{metric_name}'])
     
     if not base_scores:
-        logger.error(f"No {metric_name} results found.")
+        logger.error(f"No {metric_name} results found, returning empty stats")
         return {}
     
     base_array_np = np.array(base_scores)
@@ -139,7 +139,7 @@ def plot_metric_and_save(metric_stats_np: dict, metric_name: str, plot_path: Pat
     plt.close(fig)
 
 
-def save_all_metric_stats(config: Config, checkpoint_name: str, all_metric_stats_np: list[dict]) -> None:
+def save_all_metric_stats(config: Config, all_metric_stats_np: list[dict]) -> None:
     """Writes all processed metrics to a single summary JSON file."""
     all_metric_stats = []
     for stat_np in all_metric_stats_np:
@@ -155,7 +155,7 @@ def save_all_metric_stats(config: Config, checkpoint_name: str, all_metric_stats
         all_metric_stats.append(stat)
 
     report_content = {
-        "checkpoint": checkpoint_name,
+        "checkpoint": config.trainer_checkpoint,
         "evaluation_date": datetime.now().isoformat(timespec="seconds"),
         "all_metric_stats": all_metric_stats 
     }
