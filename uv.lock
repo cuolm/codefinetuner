@@ -228,9 +228,8 @@ wheels = [
 ]
 
 [[package]]
-name = "codelora"
-version = "0.1.0"
-source = { virtual = "." }
+name = "codefinetuner"
+source = { editable = "." }
 dependencies = [
     { name = "bitsandbytes", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
     { name = "codebleu" },
@@ -241,12 +240,16 @@ dependencies = [
     { name = "numpy" },
     { name = "omegaconf" },
     { name = "peft" },
-    { name = "pytest" },
     { name = "scikit-learn" },
     { name = "torch" },
     { name = "transformers" },
     { name = "tree-sitter" },
     { name = "tree-sitter-language-pack" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
 ]
 
 [package.metadata]
@@ -260,13 +263,15 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.3.4" },
     { name = "omegaconf", specifier = ">=2.3.0" },
     { name = "peft", specifier = ">=0.17.1" },
-    { name = "pytest", specifier = ">=9.0.2" },
     { name = "scikit-learn", specifier = ">=1.7.2" },
     { name = "torch", specifier = ">=2.9.0" },
     { name = "transformers", specifier = ">=4.57.1" },
     { name = "tree-sitter", specifier = ">=0.22.0,<0.23.0" },
     { name = "tree-sitter-language-pack", specifier = ">=0.2.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0.2" }]
 
 [[package]]
 name = "colorama"
