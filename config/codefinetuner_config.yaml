@@ -1,7 +1,8 @@
 # config/pipeline.yaml - Single Source of Truth
-# Shared across ALL stages (MANDATORY - no defaults in dataclasses)
+# Shared across ALL stages 
 globals: &globals
-  model_name: "Qwen/Qwen2.5-Coder-1.5B"
+  workspace_path: null  # if null CWD is set as default workspace_path 
+  model_name: "Qwen/Qwen2.5-Coder-1.5B" 
   fim_prefix_token: "<|fim_prefix|>"
   fim_middle_token: "<|fim_middle|>"
   fim_suffix_token: "<|fim_suffix|>"
@@ -24,8 +25,9 @@ preprocess:
   max_middle_tokens_length: 200
   fim_examples_per_subblock_ratio: 1.0
   tokenizer_batch_size: 32
-  tree_sitter_parser_path: null 
   raw_data_path: "data/data_embedded"  # null  
+  tree_sitter_parser_path: null
+  tree_sitter_definitions_path: null 
   rng_seed: 0
 
 # Finetune stage - inherits globals + local params  

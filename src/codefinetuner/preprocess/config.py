@@ -1,6 +1,7 @@
 import logging
 import math
 import json
+from importlib import resources
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
@@ -40,16 +41,17 @@ class Config:
 
     # --- Tree Sitter Parser ---
     tree_sitter_parser: Any = field(init=False)  # type hint Any because omegaconf does not recognize ts.Parser as a valid type (yaml file cannot contain an object of ts.Parser)
-    tree_sitter_parser_path: Path | None = None
     tree_sitter_block_types: Any = field(init=False)  # type hint Any because omegaconf does not support set type
     tree_sitter_subblock_types: Any = field(init=False)  # type hint Any because omegaconf does not support set type
 
     # --- Paths ---
-    project_root_path: Path = field(init=False) 
+    workspace_path: Path | None = None 
     raw_data_path: Path | None = None 
     train_dataset_path: Path = field(init=False)
     eval_dataset_path: Path = field(init=False)
     test_dataset_path: Path = field(init=False)
+    tree_sitter_parser_path: Path | None = None
+    tree_sitter_definitions_path: Path | None = None
 
     # --- Randomization ---
     rng: Any = field(init=False)  # type hint Any because omegaconf does not support np.random.Generator type
@@ -96,14 +98,22 @@ class Config:
             raise ValueError(f"Train + eval + test ratios must sum to 1.0, got {total_ratio}")
 
     def _setup_paths(self) -> None:
-        self.project_root_path = Path(__file__).resolve().parents[3]
+        if self.workspace_path is None:
+            self.workspace_path = Path.cwd()
         if self.raw_data_path is None:
-            self.raw_data_path = self.project_root_path / "data"
-        self.preprocess_outputs_dir_path = self.project_root_path / "outputs" / "preprocess"
+            self.raw_data_path = self.workspace_path / "data"
+            
+        if self.tree_sitter_definitions_path is None:
+            try:
+                self.tree_sitter_definitions_path = Path(resources.files(__package__)/ "tree_sitter_definitions.json")
+            except Exception:
+                raise FileNotFoundError("Missing internal tree_sitter_definitions.json") 
+
+        self.preprocess_outputs_dir_path = self.workspace_path / "outputs" / "preprocess"
         self.train_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "train_dataset.jsonl"
         self.eval_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "eval_dataset.jsonl"
         self.test_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "test_dataset.jsonl"
-        logger.debug(f"Resolved project root: {self.project_root_path}")
+        logger.debug(f"Resolved workspace path to: {self.workspace_path}")
 
     def _ensure_output_paths_exist(self) -> None:
         paths = [
@@ -121,7 +131,7 @@ class Config:
                 logger.debug(f"Parent directory already exists: {path.parent}")  
  
     def _load_language_blocks(self) -> None:
-        blocks_path = self.project_root_path / "config" / "tree_sitter_definitions.json"
+        blocks_path = self.tree_sitter_definitions_path 
         with open(blocks_path, "r", encoding="utf-8") as f:
             language_data = json.load(f)
 
