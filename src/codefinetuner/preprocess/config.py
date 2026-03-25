@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import tree_sitter as ts
-from omegaconf import OmegaConf, DictConfig, MISSING
+from omegaconf import OmegaConf, MISSING
 
 
 logger = logging.getLogger(__name__)

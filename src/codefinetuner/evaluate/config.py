@@ -70,7 +70,7 @@ class Config:
     _nltk_initialized: bool = field(init=False, default=False)
 
     # --- Paths ---
-    project_root_path: Path = field(init=False)
+    workspace_path: Path | None = None 
     trainer_checkpoints_dir_path: Path = field(init=False)
     test_dataset_path: Path = field(init=False)  
     evaluate_outputs_dir_path: Path = field(init=False)
@@ -136,15 +136,16 @@ class Config:
             raise ValueError(f"SentenceBLEU weights must sum to 1.0, got {sentencebleu_total_weight}")
 
     def _setup_paths(self) -> None:
-        self.project_root_path =  Path(__file__).resolve().parents[3]
-        self.trainer_checkpoints_dir_path = self.project_root_path / "outputs" / "finetune" / "checkpoints"
-        self.test_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "test_dataset.jsonl"
-        self.evaluate_outputs_dir_path = self.project_root_path / "outputs" / "evaluate"
+        if self.workspace_path is None:
+            self.workspace_path = Path.cwd()
+        self.trainer_checkpoints_dir_path = self.workspace_path / "outputs" / "finetune" / "checkpoints"
+        self.test_dataset_path = self.workspace_path / "outputs" / "preprocess" / "results" / "datasets" / "test_dataset.jsonl"
+        self.evaluate_outputs_dir_path = self.workspace_path / "outputs" / "evaluate"
         self.benchmark_dataset_path = self.evaluate_outputs_dir_path / "datasets" / "benchmark_dataset.jsonl"
         self.benchmark_evaluation_results_dir = self.evaluate_outputs_dir_path / "results"
         self.benchmark_evaluation_results_path = self.benchmark_evaluation_results_dir / "evaluation_results.jsonl"
         self.benchmark_analysis_results_path = self.benchmark_evaluation_results_dir / "analysis_results.json"
-        logger.debug(f"Resolved project root: {self.project_root_path}")
+        logger.debug(f"Resolved workspace path to: {self.workspace_path}")
 
     def _ensure_output_paths_exist(self) -> None:
         paths = [

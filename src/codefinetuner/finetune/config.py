@@ -64,7 +64,7 @@ class Config:
     device: str = field(init=False)
     
     # --- Path Management ---
-    project_root_path: Path = field(init=False)
+    workspace_path: Path | None = None 
     train_dataset_path: Path = field(init=False)
     eval_dataset_path: Path = field(init=False)
     finetune_outputs_dir_path: Path = field(init=False)
@@ -122,17 +122,18 @@ class Config:
         logger.info(f"Execution environment: device={self.device}, dtype={self.model_dtype}")
     
     def _setup_paths(self) -> None:
-        self.project_root_path = Path(__file__).resolve().parents[3]
-        self.train_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "train_dataset.jsonl"
-        self.eval_dataset_path = self.project_root_path / "outputs" / "preprocess" / "results" / "datasets" / "eval_dataset.jsonl"
-        self.finetune_outputs_dir_path = self.project_root_path / "outputs" / "finetune"
+        if self.workspace_path is None:
+            self.workspace_path = Path.cwd()
+        self.train_dataset_path = self.workspace_path / "outputs" / "preprocess" / "results" / "datasets" / "train_dataset.jsonl"
+        self.eval_dataset_path = self.workspace_path / "outputs" / "preprocess" / "results" / "datasets" / "eval_dataset.jsonl"
+        self.finetune_outputs_dir_path = self.workspace_path / "outputs" / "finetune"
         self.trainer_checkpoints_dir_path = self.finetune_outputs_dir_path / "checkpoints"
         self.trainer_model_merge_offload_folder_path = self.finetune_outputs_dir_path / "trainer_model_merge_offload_folder"
         self.trainer_log_path = self.finetune_outputs_dir_path / "results" / "trainer_log.json" 
         self.trainer_plot_path = self.finetune_outputs_dir_path / "results" / "trainer_loss_plot.png"
         self.lora_adapter_path = self.finetune_outputs_dir_path / "results" / "lora_adapter"
         self.lora_model_path = self.finetune_outputs_dir_path / "results" / "lora_model"
-        logger.debug(f"Resolved project root: {self.project_root_path}")
+        logger.debug(f"Resolved workspace path to: {self.workspace_path}")
     
     def _ensure_output_paths_exist(self) -> None:
         paths = [
