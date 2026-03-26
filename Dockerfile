@@ -1,21 +1,24 @@
-# Use the official Python 3.13 slim image to match pyproject.toml requirement
 FROM python:3.13-slim
 
-# Set the working directory inside the container
+# Copy uv binary 
+COPY --from=ghcr.io/astral-sh/uv:0.4.18 /uv /bin/
+
 WORKDIR /app
 
-# 1.Install core build dependencies (make, gcc) and cleanup temporary package lists to reduce image size.
-RUN apt-get update && apt-get install -y make gcc build-essential vim && rm -rf /var/lib/apt/lists/*
+# Install build tools for native compilation (torch, tree-sitter)
+RUN apt-get update && \ 
+    apt-get install -y make gcc build-essential vim && \
+    rm -rf /var/lib/apt/lists/*
 
-# 2. Install 'uv' globally
-RUN pip install --no-cache-dir uv
+# Copy pyproject.toml and uv.lock
+COPY pyproject.toml uv.lock ./
 
-# 3. Copy dependency files first for caching
-COPY pyproject.toml ./
+# Install only external dependencies to cache this layer
+# and prevent re-installation when source code changes.
+RUN uv sync --no-install-project
 
-# 4. Install dependencies from pyproject.toml using 'uv pip install'.
-# '--system' installs packages into the global environment inside the container.
-RUN uv pip install --system .
-
-# 5. Copy the rest of the application code
+# Copy source code
 COPY . .
+
+# Activate project virtual environment
+ENV PATH="/app/.venv/bin:$PATH"

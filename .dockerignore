@@ -34,7 +34,6 @@ Dockerfile
 
 # Exclude project specific folders and files
 backup/
-
 data/
 datasets/
 lora_adapter/
