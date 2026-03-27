@@ -10,6 +10,8 @@ from .finetune.config import Config as FinetuneConfig
 from .finetune.run import run as finetune_run
 from .evaluate.config import Config as EvaluateConfig
 from .evaluate.run import run as evaluate_run
+from .convert.config import Config as ConvertConfig
+from .convert.run import run as convert_run
 
 
 logger = logging.getLogger(__name__)
@@ -78,6 +80,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip evaluation stage.",
     )
+    parser.add_argument(
+        "--skip-convert",
+        action="store_true",
+        help="Skip conversion to gguf file stage.",
+    )
     return parser.parse_args()
 
 
@@ -86,11 +93,12 @@ def run_pipeline(
     skip_preprocess: bool = False,
     skip_finetune: bool = False,
     skip_evaluate: bool = False,
+    skip_convert: bool = False,
 ) -> None:
     logger.info("Starting end-to-end pipeline")
 
     if not skip_preprocess:
-        logger.info("=== Stage 1/3: Preprocess ===")
+        logger.info("=== Stage 1/4: Preprocess ===")
         preprocess_config = PreprocessConfig.load_from_yaml(config_path)
         preprocess_run(preprocess_config)
         logger.info("Finished preprocess stage")
@@ -98,7 +106,7 @@ def run_pipeline(
         logger.info("Skipping preprocess stage")
 
     if not skip_finetune:
-        logger.info("=== Stage 2/3: Finetune ===")
+        logger.info("=== Stage 2/4: Finetune ===")
         finetune_config = FinetuneConfig.load_from_yaml(config_path) 
         finetune_run(finetune_config)
         logger.info("Finished finetune stage")
@@ -106,12 +114,20 @@ def run_pipeline(
         logger.info("Skipping finetune stage")
 
     if not skip_evaluate:
-        logger.info("=== Stage 3/3: Evaluate ===")
+        logger.info("=== Stage 3/4: Evaluate ===")
         evaluate_config = EvaluateConfig.load_from_yaml(config_path)
         evaluate_run(evaluate_config)
         logger.info("Finished evaluate stage")
     else:
         logger.info("Skipping evaluate stage")
+    
+    if not skip_convert:
+        logger.info("=== Stage 4/4: Convert ===")
+        convert_config = ConvertConfig.load_from_yaml(config_path)
+        convert_run(convert_config)
+        logger.info("Finished conversion stage")
+    else:
+        logger.info("Skipping conversion stage")
 
     logger.info("Pipeline completed successfully")
 
@@ -125,6 +141,7 @@ def main() -> None:
             skip_preprocess=user_args.skip_preprocess,
             skip_finetune=user_args.skip_finetune,
             skip_evaluate=user_args.skip_evaluate,
+            skip_convert=user_args.skip_convert,
         )
     except Exception:
         logger.exception("Pipeline execution failed")

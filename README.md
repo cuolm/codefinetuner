@@ -39,7 +39,7 @@ Raw Code Files
 [Evaluate]    -- CodeBLEU, SentenceBLEU, exact match, line match, perplexity
      |
      v
-[Export]      -- GGUF conversion -> quantized model for deployment
+[Convert]      -- GGUF conversion -> quantized model for deployment
 ```
 
 ## Project Structure
@@ -50,7 +50,7 @@ Raw Code Files
 │       ├── preprocess/
 │       ├── finetune/
 │       ├── evaluate/
-│       └── export/              # Handles LoRA merging & GGUF conversion
+│       └── convert/             
 ├── config/                      # User configuration
 │   └── codefinetuner_config.yaml
 ├── data/                        # Default data directory (Workspace root)
@@ -93,23 +93,11 @@ Using this technique, rather than randomly splitting code into unrelated text ch
 ## Installation
 
 ### From PyPI
-
-**Core Pipeline**
-Installs preprocessing, fine-tuning, and evaluation modules.
 ```bash
 uv add codefinetuner
 # or
 pip install codefinetuner
 ```
-
-**Full Pipeline (Recommended)**
-Includes dependencies for GGUF model export and quantization.
-```bash
-uv add "codefinetuner[export]"
-# or
-pip install "codefinetuner[export]"
-```
-
 ### From Source (Development)
 ```bash
 git clone --recurse-submodules https://github.com/cuolm/codefinetuner
@@ -126,11 +114,12 @@ pip install -e .
 ---
 
 ## Quick Start
+Create a configuration file according to the [Configuration](#configuration) section.
 ```python
 import codefinetuner
 
 # Run the complete pipeline
-codefinetuner.run_pipeline("config.yaml")
+codefinetuner.run_pipeline("codefinetuner_config.yaml")
 ```
 
 ## Configuration
@@ -190,7 +179,7 @@ uv run codefinetuner --config="config/codefinetuner_config.yaml"
 
 **Pipeline Flags:**
 * `--config`: Specify path to a different config file.
-* `--skip-preprocess`, `--skip-finetune`, `--skip-evaluate`, `--skip-export`: Skip specific stages.
+* `--skip-preprocess`, `--skip-finetune`, `--skip-evaluate`, `--skip-convert`: Skip specific stages.
 
 ### Python Module Usage
 ```python
@@ -203,7 +192,7 @@ codefinetuner.run_pipeline("path/to/codefinetuner_config.yaml")
 codefinetuner.run_pipeline(
     "path/to/codefinetuner_config.yaml",
     skip_preprocess=True,
-    skip_export=True
+    skip_convert=True
 )
 
 # Individual stages
@@ -212,7 +201,7 @@ preprocess.run("config.yaml")
 ```
 
 ## Deployment: Using the Model
-The `export` stage converts the model to GGUF format. The final GGUF file is located under `outputs/export/results/lora_model.gguf`.  
+The `convert` stage converts the model to GGUF format. The final GGUF file is located under `outputs/convert/results/lora_model.gguf`.  
 For a detailed guide on how to use the gguf model with the VS Code extension [llama.vscode](https://github.com/ggml-org/llama-vscode), check out the [inference-vscode](/docs/inference-vscode.md) guide.
 
 

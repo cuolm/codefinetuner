@@ -34,6 +34,8 @@ dependencies = [
     "codebleu>=0.7.0",
     "nltk>=3.9.2",
     "omegaconf>=2.3.0",
+    "gguf>=0.18.0",
+    "sentencepiece>=0.2.1",
 ]
 
 [dependency-groups]

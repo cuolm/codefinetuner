@@ -12,7 +12,7 @@ globals: &globals
   data_language: "c"
   data_extensions: [".c", ".h"]
 
-# Preprocess stage - inherits globals + local params
+# Preprocess stage
 preprocess:
   <<: *globals
   split_mode: "manual"
@@ -30,7 +30,7 @@ preprocess:
   tree_sitter_definitions_path: null  # null: uses package internal tree sitter definitions 
   rng_seed: 0
 
-# Finetune stage - inherits globals + local params  
+# Finetune stage 
 finetune:
   <<: *globals
   model_attn_implementation: "sdpa"
@@ -60,7 +60,7 @@ finetune:
   dataset_shuffle_buffer_size: 50000
   dataset_shuffle_seed: 0
 
-# Evaluate stage - inherits globals + local params
+# Evaluate stage
 evaluate:
   <<: *globals
   benchmark_sample_size: 4
@@ -84,3 +84,7 @@ evaluate:
   trainer_checkpoint: "last"
   plot_only: false
   benchmark_use_existing_dataset: false
+
+# Convert stage
+convert:
+  <<: *globals
