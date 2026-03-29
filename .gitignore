@@ -17,4 +17,5 @@ outputs/
 data/
 tests/
 backup/
+base_models/
 TODO.md

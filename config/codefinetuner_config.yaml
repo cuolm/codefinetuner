@@ -2,7 +2,7 @@
 # Shared across all stages 
 globals: &globals
   workspace_path: null  # null: defaults to current working directory (CWD)
-  model_name: "Qwen/Qwen2.5-Coder-1.5B" 
+  model_name: "Qwen/Qwen3.5-0.8B" 
   fim_prefix_token: "<|fim_prefix|>"
   fim_middle_token: "<|fim_middle|>"
   fim_suffix_token: "<|fim_suffix|>"

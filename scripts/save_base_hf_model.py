@@ -1,25 +1,40 @@
+#!/usr/bin/env python3
+import argparse
 import torch
 from pathlib import Path
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-project_root_path = Path(__file__).resolve().parent.parent
 
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-elif torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cpu")
+def get_device_dtype():
+    if torch.cuda.is_available():
+        return "cuda", torch.bfloat16
+    elif torch.backends.mps.is_available():
+        return "mps", torch.float16
+    else:
+        return "cpu", torch.float32
 
-model_name = "Qwen/Qwen2.5-Coder-1.5B"
 
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-
-model = AutoModelForCausalLM.from_pretrained(
-    pretrained_model_name_or_path=model_name,
-    dtype=torch.float16  # Reduces weights from 32-bit float to 16-bit float
+def main():
+    parser = argparse.ArgumentParser(description="Save base HF model and tokenizer")
+    parser.add_argument("--model_name", type=str, required=True, help="Model name or path")
+    
+    args = parser.parse_args()
+    
+    project_root_path = Path(__file__).resolve().parent.parent
+    output_path = project_root_path / "base_models" 
+    output_path.mkdir(parents=True, exist_ok=True)
+    
+    device, model_dtype = get_device_dtype()
+    
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model_name, 
+        dtype=model_dtype
     ).to(device)
+    
+    model.save_pretrained(output_path)
+    tokenizer.save_pretrained(output_path)
 
-model.save_pretrained(f"{project_root_path}/base_models/{model_name}")
-tokenizer.save_pretrained(f"{project_root_path}/base_models/{model_name}")
 
+if __name__ == "__main__":
+    main()
