@@ -89,7 +89,7 @@ def _generate_fim_examples_from_code_block(config: Config, code_utf8: bytes, sub
         middle_end_byte = subblock_ranges[idx][1]
         middle_bytes_length = middle_end_byte - middle_start_byte
         middle_tokens_length = middle_bytes_length / bytes_per_token_ratio
-        # Allow only examples within a certain range
+        # allow only examples within a certain range
         if (middle_tokens_length < config.min_middle_tokens_length) or (middle_tokens_length > config.max_middle_tokens_length):
             continue
 
@@ -131,13 +131,6 @@ def create_fim_examples(config: Config, code_blocks_iter: Iterator[Tuple[bytes, 
         fim_examples = _generate_fim_examples_from_code_block(config, code_block_utf8, subblock_ranges, bytes_per_token_ratio)
         for fim_example in fim_examples:
             yield fim_example
-
-
-def _find_first_token_idx(sequence: List[int], token_id: int) -> int:
-    for idx, token in enumerate(sequence):
-        if token == token_id:
-            return idx
-    return -1
 
 
 def _save_tokenized_batch_as_jsonl(file_path: Path, batch: Mapping[str, List[List[int]]]) -> None:
