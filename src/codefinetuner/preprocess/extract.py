@@ -44,9 +44,10 @@ def auto_create_split_paths(config: Config) -> Tuple[list[Path], list[Path], lis
     num_files = len(all_file_paths)
     if num_files == 0:
         logger.warning(f"No source files found under {config.raw_data_path} with extensions {config.data_extensions}")
+        return [], [], []
 
     train_end = int(num_files * config.train_ratio)
-    eval_end = train_end + int(num_files * config.eval_ratio)
+    eval_end = int(num_files * (config.train_ratio + config.eval_ratio))
 
     train_file_paths = all_file_paths[:train_end]
     eval_file_paths = all_file_paths[train_end:eval_end]
