@@ -14,8 +14,7 @@ wheels/
 
 # Project specific 
 outputs/
-data/
-tests/
+/data/ 
 backup/
 base_models/
 TODO.md

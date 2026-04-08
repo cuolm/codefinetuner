@@ -51,6 +51,10 @@ Homepage = "https://github.com/cuolm/codefinetuner"
 Repository = "https://github.com/cuolm/codefinetuner.git"
 Issues = "https://github.com/cuolm/codefinetuner/issues"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--ignore=third_party"]
+
 [tool.hatch.version]
 source = "vcs"
 
