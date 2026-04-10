@@ -19,9 +19,11 @@ def main():
     parser.add_argument("--model_name", type=str, required=True, help="Model name or path")
     
     args = parser.parse_args()
+
+    model_folder = args.model_name.split("/")[-1]
     
     project_root_path = Path(__file__).resolve().parent.parent
-    output_path = project_root_path / "base_models" 
+    output_path = project_root_path / "base_models" / model_folder
     output_path.mkdir(parents=True, exist_ok=True)
     
     device, model_dtype = get_device_dtype()
