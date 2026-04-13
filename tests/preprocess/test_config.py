@@ -1,10 +1,6 @@
 import pathlib
-import sys
-import math
-import json
 import textwrap
 
-import numpy as np
 import pytest
 
 
@@ -18,27 +14,24 @@ from codefinetuner.preprocess.config import Config
 # --- Fixtures ---
 
 @pytest.fixture
-def config(tmp_path) -> Config:
+def config() -> Config:
     """Load a Config from the test YAML, redirecting outputs to tmp_path."""
     test_config = Config.load_from_yaml(test_config_path)
-    test_config.workspace_path = tmp_path
-    test_config.raw_data_path = test_data_path 
-    test_config._setup_paths()
-    test_config._ensure_output_paths_exist()
     return test_config
 
 
 # --- load_from_yaml ---
 
 def test_load_from_yaml_success(config):
-    assert config.model_name == "Qwen/Qwen2.5-Coder-1.5B"
+    assert config.model_name == "tests/models/Qwen2.5-Coder-0.5B"
     assert config.data_language == "c"
     assert ".c" in config.data_extensions
 
 
-def test_load_from_yaml_missing_file():
+def test_load_from_yaml_missing_file(tmp_path):
+    nonexistent_yaml = tmp_path / "nonexistent_yaml.yaml"
     with pytest.raises(FileNotFoundError):
-        Config.load_from_yaml(pathlib.Path("nonexistent_config.yaml"))
+        Config.load_from_yaml(nonexistent_yaml)
 
 
 def test_load_from_yaml_invalid_yaml(tmp_path):
@@ -52,6 +45,7 @@ def test_load_from_yaml_ignores_unknown_keys(tmp_path):
     """Extra YAML keys (e.g. from global anchors) must not raise."""
     config_text = textwrap.dedent("""
         preprocess:
+          workspace_path: "tests"
           model_name: "Qwen/Qwen2.5-Coder-1.5B"
           fim_prefix_token: "<|fim_prefix|>"
           fim_middle_token: "<|fim_middle|>"
@@ -73,6 +67,7 @@ def test_load_from_yaml_ignores_unknown_keys(tmp_path):
 def test_invalid_ratio_raises(tmp_path):
     config_text = textwrap.dedent("""
         preprocess:
+          workspace_path: "tests"     
           model_name: "Qwen/Qwen2.5-Coder-1.5B"
           fim_prefix_token: "<|fim_prefix|>"
           fim_middle_token: "<|fim_middle|>"
@@ -91,18 +86,20 @@ def test_invalid_ratio_raises(tmp_path):
         Config.load_from_yaml(test_config_path)
 
 
-# --- Path setup ---
+# --- _setup_paths ---
 
-def test_output_directories_created(config):
-    assert config.train_dataset_path.parent.is_dir()
-    assert config.eval_dataset_path.parent.is_dir()
-    assert config.test_dataset_path.parent.is_dir()
-
-
-def test_dataset_paths_are_under_workspace(config):
+def test_setup_paths_dataset_paths_are_under_workspace(config):
     assert str(config.train_dataset_path).startswith(str(config.workspace_path))
     assert str(config.eval_dataset_path).startswith(str(config.workspace_path))
     assert str(config.test_dataset_path).startswith(str(config.workspace_path))
+
+
+# --- _ensure_output_paths_exist ---
+
+def test_ensure_output_paths_exist(config):
+    assert config.train_dataset_path.parent.is_dir()
+    assert config.eval_dataset_path.parent.is_dir()
+    assert config.test_dataset_path.parent.is_dir()
 
 
 # --- Language block loading ---
@@ -117,6 +114,7 @@ def test_block_types_loaded_as_sets(config):
 def test_unknown_language_raises(tmp_path):
     config_text = textwrap.dedent("""
         preprocess:
+          workspace_path: "tests"                        
           model_name: "Qwen/Qwen2.5-Coder-1.5B"
           fim_prefix_token: "<|fim_prefix|>"
           fim_middle_token: "<|fim_middle|>"

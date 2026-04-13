@@ -1,5 +1,4 @@
 import pathlib
-import sys
 import json
 import textwrap
 from transformers import AutoTokenizer
@@ -8,7 +7,6 @@ import pytest
 
 
 tests_path = pathlib.Path(__file__).parent.parent 
-test_data_path = tests_path / "data"
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 
 from codefinetuner.preprocess.config import Config
@@ -29,10 +27,6 @@ from codefinetuner.preprocess.process import (
 def config(tmp_path) -> Config:
     """Load a Config from the test YAML, redirecting outputs to tmp_path."""
     test_config = Config.load_from_yaml(test_config_path)
-    test_config.workspace_path = tmp_path
-    test_config.raw_data_path = test_data_path 
-    test_config._setup_paths()
-    test_config._ensure_output_paths_exist()
     return test_config
 
 @pytest.fixture
@@ -207,7 +201,7 @@ def test_save_tokenized_batch_appends_on_second_call(tmp_path):
 
 # --- tokenize_and_save_fim_examples ---
 
-def test_tokenize_and_save_fim_examples(tmp_path, config, test_code_block, tokenizer):
+def test_tokenize_and_save_fim_examples(tmp_path, config, tokenizer):
     tmp_file_path = tmp_path / "tmp_file.jsonl"
     example = b'<|fim_prefix|>\nint calculate_sum(int n) {\n    <|fim_suffix|>}\n    return n + calculate_sum(n - 1);\n}\n<|fim_middle|> if (n <= 0) {\n        return 0;\n    <|endoftext|>'
     example_iter = iter([example])

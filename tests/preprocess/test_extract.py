@@ -1,12 +1,10 @@
 import pathlib
-import sys
 import textwrap
 
 import pytest
 
 
 tests_path = pathlib.Path(__file__).parent.parent 
-test_data_path = tests_path / "data"
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 
 from codefinetuner.preprocess.config import Config
@@ -24,20 +22,10 @@ from codefinetuner.preprocess.extract import (
 # --- Fixtures ---
 
 @pytest.fixture
-def config(tmp_path) -> Config:
+def config() -> Config:
     """Load a Config from the test YAML, redirecting outputs to tmp_path."""
     test_config = Config.load_from_yaml(test_config_path)
-    test_config.workspace_path = tmp_path
-    test_config.raw_data_path = test_data_path 
-    test_config._setup_paths()
-    test_config._ensure_output_paths_exist()
     return test_config
-
-@pytest.fixture
-def real_code_block(config):
-    """Return the first (code_bytes, node) block from the train split."""
-    train_iter, _, _ = get_code_blocks_from_manual_split(config)
-    return next(train_iter)
 
 
 # --- auto_create_split_paths ---
@@ -142,8 +130,8 @@ def test_get_code_blocks_from_auto_split(config):
 
 # --- _check_required_directories ---
 
-def test_check_required_directories_passes_when_dirs_exist():
-    _check_required_directories(test_data_path, ["train", "eval", "test"])
+def test_check_required_directories_passes_when_dirs_exist(config):
+    _check_required_directories(config.raw_data_path, ["train", "eval", "test"])
 
 
 def test_check_required_directories_raises_when_dir_missing(tmp_path):

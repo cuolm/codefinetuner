@@ -1,5 +1,6 @@
 globals: &globals
-  model_name: "Qwen/Qwen2.5-Coder-1.5B"
+  workspace_path: "tests"
+  model_name: "tests/models/Qwen2.5-Coder-0.5B"
   fim_prefix_token: "<|fim_prefix|>"
   fim_middle_token: "<|fim_middle|>"
   fim_suffix_token: "<|fim_suffix|>"
@@ -18,3 +19,6 @@ preprocess:
   fim_examples_per_subblock_ratio: 1.0
   tokenizer_batch_size: 32
   rng_seed: 0
+
+finetune:
+  <<: *globals
