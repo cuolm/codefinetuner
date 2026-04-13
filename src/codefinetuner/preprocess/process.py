@@ -13,6 +13,33 @@ from .extract import auto_create_split_paths, get_code_blocks_from_paths
 logger = logging.getLogger(__name__)
 
 
+def estimate_bytes_per_token_ratio(config: Config, tokenizer: AutoTokenizer, number_of_code_blocks: int) -> float:
+    """
+    Estimate bytes per token ratio from first `number_of_code_blocks` code blocks in training split.
+    Always uses auto-split (ignores config.split_mode). 
+    Source code is almost entirely ASCII characters (1 char = 1 byte) 
+    except e.g. specific string literals (printf("π ≈ 3.14159\n");). 
+    ASCII is a subset of UTF-8, so len(bytes) ≈ character count.
+    """
+    train_file_paths, _, _ = auto_create_split_paths(config)  # no matter the split mode always use the auto split
+    total_bytes = 0
+    total_tokens = 0
+    i = 0
+    block_iter = get_code_blocks_from_paths(config, train_file_paths)
+    for block in block_iter:
+        total_bytes += len(block[0])  # bytes from code block
+        tokenized_block = tokenizer(block[0].decode('utf-8')).tokens()
+        total_tokens += len(tokenized_block)
+        i += 1
+        if i >= number_of_code_blocks:
+            break
+    
+    if total_tokens <= 0 or total_bytes <= 0:
+        raise ValueError("Failed to estimate bytes per token ratio")
+    bytes_per_token_ratio = total_bytes / total_tokens 
+    return bytes_per_token_ratio
+
+
 def _extract_subblock_ranges(config: Config, node: ts.Node, base_offset: int) -> list[Tuple[int, int]]:
     """
     Recursively depth-first search (DFS) the Abstract syntax tree (AST) and collect all subblock indices.
@@ -43,33 +70,6 @@ def _filter_subblocks(subblock_ranges: list[Tuple[int, int]], max_bytes_per_subb
     while i < len(subblock_ranges) and subblock_ranges[i][1] <= max_bytes_per_subblock:
         i += 1
     return subblock_ranges[:i]
-
-
-def estimate_bytes_per_token_ratio(config: Config, tokenizer: AutoTokenizer, number_of_code_blocks: int) -> float:
-    """
-    Estimate bytes per token ratio from first `number_of_code_blocks` code blocks in training split.
-    Always uses auto-split (ignores config.split_mode). 
-    Source code is almost entirely ASCII characters (1 char = 1 byte) 
-    except e.g. specific string literals (printf("π ≈ 3.14159\n");). 
-    ASCII is a subset of UTF-8, so len(bytes) ≈ character count.
-    """
-    train_file_paths, _, _ = auto_create_split_paths(config)  # no matter the split mode always use the auto split
-    total_bytes = 0
-    total_tokens = 0
-    i = 0
-    block_iter = get_code_blocks_from_paths(config, train_file_paths)
-    for block in block_iter:
-        total_bytes += len(block[0])  # bytes from code block
-        tokenized_block = tokenizer(block[0].decode('utf-8')).tokens()
-        total_tokens += len(tokenized_block)
-        i += 1
-        if i >= number_of_code_blocks:
-            break
-    
-    if total_tokens <= 0 or total_bytes <= 0:
-        raise ValueError("Failed to estimate bytes per token ratio")
-    bytes_per_token_ratio = total_bytes / total_tokens 
-    return bytes_per_token_ratio 
 
 
 def _generate_fim_examples_from_code_block(config: Config, code_utf8: bytes, subblock_ranges: list[Tuple[int, int]], bytes_per_token_ratio: float) -> list[bytes]:

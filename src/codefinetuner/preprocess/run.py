@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 from transformers import AutoTokenizer
-import tree_sitter as ts
 
 from .config import Config
 from .extract import get_code_blocks_from_auto_split, get_code_blocks_from_manual_split

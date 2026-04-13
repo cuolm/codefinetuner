@@ -1,4 +1,3 @@
-import argparse
 import gc
 import json
 import logging
