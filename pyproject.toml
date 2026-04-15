@@ -53,8 +53,9 @@ Repository = "https://github.com/cuolm/codefinetuner.git"
 Issues = "https://github.com/cuolm/codefinetuner/issues"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = ["--ignore=third_party"]
+pythonpath = ["src"]  # add src to sys.path when pytest runs
+testpaths = ["tests"]  # make pytest only discover tests under tests/
+addopts = "--import-mode=importlib --ignore=third_party"  # importlib-based importing for test modules, avoid third_party module tests
 
 [tool.hatch.version]
 source = "vcs"
