@@ -22,3 +22,9 @@ preprocess:
 
 finetune:
   <<: *globals
+
+evaluate:
+  <<: *globals
+
+convert:
+  <<: *globals
