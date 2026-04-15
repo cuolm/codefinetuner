@@ -15,7 +15,7 @@ from codefinetuner.preprocess.config import Config
 
 @pytest.fixture
 def config() -> Config:
-    """Load a Config from the test YAML, redirecting outputs to tmp_path."""
+    """Load a Config from the test YAML."""
     test_config = Config.load_from_yaml(test_config_path)
     return test_config
 
