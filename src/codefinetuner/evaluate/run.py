@@ -6,11 +6,11 @@ from pathlib import Path
 
 from transformers.trainer_utils import get_last_checkpoint
 
-from .analyze import analyze_metric, save_all_metric_stats, get_plot_path, plot_metric_and_save, plot_all_metric_averages_and_save
 from .config import Config
-from .evaluate import evaluate_and_save
-from .generate import generate_and_save
 from .benchmark import create_benchmark_dataset
+from .generate import generate_and_save
+from .evaluate import evaluate_and_save
+from .analyze import analyze_metric, save_all_metric_stats, get_plot_path, plot_metric_and_save, plot_all_metric_averages_and_save
 
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ def _ensure_checkpoints(config: Config) -> None:
 
 
 def run(config: Config) -> None:
-    if config.benchmark_use_existing_dataset or not config.benchmark_dataset_path.exists():
+    if not config.benchmark_use_existing_dataset or not config.benchmark_dataset_path.exists():
         dataset_len = create_benchmark_dataset(config)
         logger.info(f"Created new benchmark dataset '{config.benchmark_dataset_path}' with '{dataset_len}' examples")
     else:
