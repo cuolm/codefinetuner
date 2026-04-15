@@ -102,7 +102,7 @@ def plot_metric_and_save(metric_stats_np: dict, metric_name: str, plot_path: Pat
         axs[0, 0].set_title('Average Scores')
         axs[0, 0].set_ylabel('Score')
         
-        axs[0, 1].boxplot([base_array_np, lora_array_np], labels=['Base', 'LoRA'], patch_artist=True, boxprops=dict(facecolor='lightblue', color='blue'), medianprops=dict(color='red', linewidth=2))
+        axs[0, 1].boxplot([base_array_np, lora_array_np], tick_labels=['Base', 'LoRA'], patch_artist=True, boxprops=dict(facecolor='lightblue', color='blue'), medianprops=dict(color='red', linewidth=2))
         axs[0, 1].set_title('Score Distribution')
         axs[0, 1].set_ylabel('Score')
         axs[0, 1].set_ylim(0, axis_upper_bound)
