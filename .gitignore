@@ -13,7 +13,7 @@ wheels/
 .vscode
 
 # Project specific 
-outputs/
+/outputs/
 /data/ 
 backup/
 base_models/
