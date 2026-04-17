@@ -1,4 +1,4 @@
-name: Release new version and upload to PyPI
+name: Release
 
 on:
   push:

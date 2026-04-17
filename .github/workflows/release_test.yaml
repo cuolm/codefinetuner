@@ -1,4 +1,4 @@
-name: Release new version and upload to TestPyPI
+name: Test Reslease
 
 on:
   push:

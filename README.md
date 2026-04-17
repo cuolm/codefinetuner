@@ -1,8 +1,8 @@
 # CodeFinetuner
-[![Build](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yml/badge.svg)](https://github.com/cuolm/codefinetuner/actions)
 [![PyPI](https://img.shields.io/pypi/v/codefinetuner.svg)](https://pypi.org/project/codefinetuner/)
 [![License](https://img.shields.io/github/license/cuolm/codefinetuner.svg)](LICENSE.txt)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/cuolm/gist_id/raw/coverage.json)](https://github.com/cuolm/codefinetuner/actions)
+[![Release](https://github.com/cuolm/codefinetuner/actions/workflows/release.yaml/badge.svg)](https://github.com/cuolm/codefinetuner/actions/workflows/release.yaml)
+[![Tests](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yaml/badge.svg)](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yaml)
 
 
 Create your own local code autocomplete model, fine-tuned on your custom code repository, for use in editors like VS Code or Vim/Neovim.
