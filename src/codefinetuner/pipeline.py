@@ -89,13 +89,15 @@ def _parse_args() -> argparse.Namespace:
 
 
 def run_pipeline(
-    config_path: Path,
+    config_path: Path | str,
     skip_preprocess: bool = False,
     skip_finetune: bool = False,
     skip_evaluate: bool = False,
     skip_convert: bool = False,
 ) -> None:
     logger.info("Starting end-to-end pipeline")
+
+    config_path = Path(config_path)
 
     if not skip_preprocess:
         logger.info("=== Stage 1/4: Preprocess ===")
