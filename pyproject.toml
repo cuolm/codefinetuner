@@ -65,10 +65,15 @@ content-type = "text/markdown"
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
 path = "README.md"
 
+# RULE 1: Fixes [text](relative/path) links
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
-# replace relative links with absolute links
 pattern = '\[(.+?)\]\(((?!https?://)\S+?)\)'
 replacement = '[\1](https://github.com/cuolm/codefinetuner/tree/master\g<2>)'
+
+# RULE 2: Fixes <img src="docs/..."> tags
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'src="[\/]?docs\/(.+?)"'
+replacement = 'src="https://raw.githubusercontent.com/cuolm/codefinetuner/master/docs/\1"'
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/codefinetuner"]
