@@ -141,7 +141,7 @@ globals: &globals
   data_extensions: [".c", ".h"]
 
 preprocess:
-  <<: *globals                   # Inherits all global parameters
+  <<: *globals  # inherits all global parameters
   split_mode: "manual"
   max_token_sequence_length: 1024
   # ... (preprocess specific settings)
