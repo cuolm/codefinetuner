@@ -25,9 +25,20 @@ jobs:
       - name: Run Pytest
         run: uv run pytest
 
+  docker-build-test:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Build Docker image
+        run: docker build -t codefinetuner-ci-image .
+
   build:
     name: Build Distribution
-    needs: test
+    needs: [test, docker-build-test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
