@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This document defines all mandatory and optional parameters in the YAML cofig file. The pipeline uses YAML anchors (`&globals`) and aliases (`<<: *globals`) to propagate shared settings across the `preprocess`, `finetune`, and `evaluate` stages. See [`config/codefinetuner_config.yaml`](/config/codefinetuner_config.yaml) for an example file.
+This document defines all mandatory and optional parameters in the YAML config file. The pipeline uses YAML anchors (`&globals`) and aliases (`<<: *globals`) to propagate shared settings across the `preprocess`, `finetune`, `evaluate` and `convert` stages. See [`config/codefinetuner_config.yaml`](/config/codefinetuner_config.yaml) for an example file.
 
 ## Global Parameters (Mandatory)
 *Shared across all stages.* 
@@ -27,10 +27,10 @@ This document defines all mandatory and optional parameters in the YAML cofig fi
 | `eval_ratio` | float | `0.1` | Validation set ratio (used in `auto` split). |
 | `test_ratio` | float | `0.1` | Test set ratio (used in `auto` split). |
 | `max_token_sequence_length` | int | `1024` | Maximum tokens per training example. |
-| `max_code_blocks_ast_depth` | int | `2` | Tree Sitter AST depth limit for block extraction. Depth 1 is root, 2 includes child nodes (e.g. functions) |
+| `max_code_blocks_ast_depth` | int | `2` | Tree-Sitter AST depth limit for block extraction. Depth 1 is root, 2 includes child nodes (e.g. functions). |
 | `min_middle_tokens_length` | int | `20` | Minimum tokens required in the FIM "middle" section of an example. |
 | `max_middle_tokens_length` | int | `200` | Maximum tokens allowed in the FIM "middle" section of an example. |
-| `fim_examples_per_subblock_ratio` | float | `1.0` | Number of FIM examples generated per subblock.  1.0 = all fim examples of a subblock are extracted, 0.5 = onls 50% of fim examples of a subblock are extracted |
+| `fim_examples_per_subblock_ratio` | float | `1.0` | Number of FIM examples generated per subblock.  1.0 = all FIM examples of a subblock are extracted, 0.5 = only 50% are extracted |
 | `tokenizer_batch_size` | int | `32` | Batch size for the tokenizer. The number of examples processed simultaneously by the tokenizer to improve throughput. |
 | `raw_data_path` | str/null | `"data"` | Location of source code files used to generate the datasets. `null` defaults to `<workspace>/data`. |
 | `tree_sitter_parser_path` | str/null | `null` | Path to custom `.so`/`.dylib` parser file. |
@@ -44,7 +44,7 @@ This document defines all mandatory and optional parameters in the YAML cofig fi
 |-----------|------|---------|-------------|
 | `model_attn_implementation` | str | `"sdpa"` | Attention backend. `flash_attention_2` is fastest (requires Ampere+ GPUs); `sdpa` is the efficient PyTorch default. |
 | `lora_r` | int | `32` | Rank of adapter matrices. Controls parameter count and the complexity of learned patterns. |
-| `lora_alpha` | int | `64` | Scaling factor for LoRA updates. Usually set to $2 \times$ `lora_r` to maintain numerical stability. |
+| `lora_alpha` | int | `64` | Scaling factor for LoRA updates. Usually set to 2*`lora_r` to maintain numerical stability. |
 | `lora_dropout` | float | `0.1` | Dropout probability for LoRA layers to prevent overfitting on specific code snippets. |
 | `lora_bias` | str | `"none"` | Specifies if bias parameters are trained (`"none"`, `"all"`, `"lora_only"`). |
 | `lora_target_modules` | list | `["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "down_proj", "up_proj"]` | Model layers targeted for adaptation. Increasing the list improves performance but consumes more VRAM. |
@@ -66,7 +66,7 @@ This document defines all mandatory and optional parameters in the YAML cofig fi
 | `trainer_save_strategy` | str | `"steps"` | Trigger for saving model checkpoints (`"steps"`, `"epoch"`, or `"no"`). |
 | `trainer_save_steps` | int | `100` | Interval of training steps between model checkpoint saves. Only active if `trainer_save_strategy` is set to `"steps"` |
 | `trainer_logging_strategy` | str | `"steps"` | Trigger for logging metrics (`"steps"`, `"epoch"`, or `"no"`). |
-| `dataset_shuffle_buffer_size` | int | `50000` | Number of training examples to load into memory for randomly shuffling datasets since steramable datasets are used. |
+| `dataset_shuffle_buffer_size` | int | `50000` | Number of training examples to load into memory for randomly shuffling datasets since streamable datasets are used. |
 | `dataset_shuffle_seed` | int | `0` | Seed for shuffling datasets. |
 
 ## Evaluate Parameters (Optional)
@@ -80,9 +80,9 @@ This document defines all mandatory and optional parameters in the YAML cofig fi
 | `benchmark_shuffle_seed` | int | `42` | Random seed ensuring that dataset shuffling is deterministic and reproducible. |
 | `benchmark_use_existing_dataset` | bool | `false` | If `true`, the pipeline reuses a previously generated benchmark dataset file instead of creating a new one. |
 | `generation_max_new_tokens` | int | `128` | Upper limit on the number of tokens the models are permitted to generate for each code completion. |
-| `generation_do_sample` | bool | `false` | Enables probabilistic sampling. If `false`, the model uses greedy decoding (picking only the top token) and `generation_temperature` and `generation_top_p parameters` are ignored.|
-| `generation_temperature` | float | `0.7` | Probability smoothing factor. Values < 1.0 make the model more confident; > 1.0 make it more random. Only active when `generation_do_sample` is set to `true`.|
-| `generation_top_p` | float | `0.95` | Cumulative probability threshold for nucleus sampling. Limits choices to the most likely tokens totaling 95% probability. Only active when `generation_do_sample` is set to `true`.|
+| `generation_do_sample` | bool | `false` | Enables probabilistic sampling. If `false`, the model uses greedy decoding (picking only the top token) and `generation_temperature` and `generation_top_p` are ignored.|
+| `generation_temperature` | float | `0.7` | Probability smoothing factor. Values < 1.0 make the model more confident; > 1.0 make it more random. Only active when `generation_do_sample` is `true`.|
+| `generation_top_p` | float | `0.95` | Cumulative probability threshold for nucleus sampling. Limits choices to the most likely tokens totaling 95% probability. Only active when `generation_do_sample` is `true`.|
 | `codebleu_language` | str | `"c"` | Forces the CodeBLEU parser to use a specific language's grammar rules. |
 | `codebleu_ngram_weight` | float | `0.25` | Standard token match. Measures how many exact words or symbols match the ground truth, treating every character (like `;` or `sum`) with equal importance. |
 | `codebleu_weighted_ngram_weight` | float | `0.25` | Keyword-based scoring. Gives higher points for correctly predicting programming keywords (like `if`, `while`, `return`, `int`) than for standard symbols, ensuring the score reflects the model's grasp of the code's logic. |
@@ -92,6 +92,9 @@ This document defines all mandatory and optional parameters in the YAML cofig fi
 | `sentencebleu_ngram_weight_2` | float | `0.25` | Short phrase accuracy. Weight of 2-token pairs (2-grams) in the final BLEU score calculation. |
 | `sentencebleu_ngram_weight_3` | float | `0.25` | Medium phrase accuracy. Weight of 3-token chains (3-grams) in the final BLEU score calculation. |
 | `sentencebleu_ngram_weight_4` | float | `0.25` | Long phrase accuracy. Weight of 4-token blocks (4-grams) in the final BLEU score calculation. |
-| `line_match_number_of_lines` | int | `2` | Number of identical consecutive lines required between prediction and ground truth to score a line match. |
+| `line_match_number_of_lines` | int | `2` | Number of identical consecutive lines required between prediction and ground truth to count as a line match. |
 | `trainer_checkpoint` | str | `"last"` | Specifies the checkpoint folder to load. Use `last` for the latest or provide a specific directory name. |
 | `plot_only` | bool | `false` | If `true`, skips the heavy inference and scoring steps to only generate charts from existing results. |
+
+## Convert Parameters (Optional)
+*This stage currently has no configurable parameters.*

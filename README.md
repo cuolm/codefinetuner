@@ -4,10 +4,8 @@
 [![Release](https://github.com/cuolm/codefinetuner/actions/workflows/release.yaml/badge.svg)](https://github.com/cuolm/codefinetuner/actions/workflows/release.yaml)
 [![Tests](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yaml/badge.svg)](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yaml)
 
-
-Create your own local code autocomplete model, fine-tuned on your custom code repository, for use in editors like VS Code or Vim/Neovim.
-
-Fine-tuning is achieved by training a Low-Rank Adapter ([LoRA](https://arxiv.org/abs/2106.09685)) to perform Fill-In-the-Middle ([FIM](https://arxiv.org/abs/2207.14255)) completion. 
+CodeFinetuner fine-tunes a local code autocomplete model on your own repository for use in editors like VS Code or Vim/Neovim.
+It trains a Low-Rank Adapter ([LoRA](https://arxiv.org/abs/2106.09685)) on Fill-In-the-Middle ([FIM](https://arxiv.org/abs/2207.14255)) examples so the model learns the structure and patterns of your codebase.
 
 ## Table of Contents
 - [Architecture](#architecture)
@@ -17,23 +15,25 @@ Fine-tuning is achieved by training a Low-Rank Adapter ([LoRA](https://arxiv.org
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Usage](#usage)
-- [Deployment](#deployment)
-- [Docker](#docker)
-- [Tree-sitter Setup](#tree-sitter-setup) <!-- Link to new docs -->
+- [Finetuned Model Usage](#finetuned-model-usage)
+- [Docker Image](#docker-image)
+- [Tree-sitter Customization](#tree-sitter-customization)
 - [Tests](#tests)
 - [Resources](#resources)
 - [License](#license)
 
 
 ## Architecture
+CodeFinetuner follows a simple pipeline. First, raw code is parsed and turned into FIM examples. These examples are then used to train a LoRA adapter and evaluate the fine‑tuned model using multiple metrics. Finally, the model is converted into GGUF format for deployment.
+
 ```text
 Raw Code Files
      |
      v
-[Preprocess]  -- tree-sitter parsing -> FIM examples -> tokenized JSONL
+[Preprocess]  -- tree-sitter parsing -> FIM examples -> tokenized jsonl datasets
      |
      v
-[Finetune]    -- LoRA adapter training -> merged model
+[Finetune]    -- LoRA adapter training -> merged safetensors model
      |
      v
 [Evaluate]    -- CodeBLEU, SentenceBLEU, exact match, line match, perplexity
@@ -53,16 +53,16 @@ Raw Code Files
 │       └── convert/             
 ├── config/                      # User configuration
 │   └── codefinetuner_config.yaml
-├── data/                        # Default data directory (Workspace root)
-├── outputs/                     # Pipeline artifacts (Workspace root)
+├── data/                        # Default data directory 
+├── outputs/                     # Pipeline outputs
 ├── scripts/                     # Utility scripts
-├── tests/                       # Unit tests 
-├── third_party/                 # External submodules (e.g., custom parsers)
-└── docs/                        # Documentation and assets
+├── tests/                       # Tests 
+├── third_party/                 # External submodules 
+└── docs/                        # Documentation 
 ```
 
 ## How Training Examples Are Created
-To generate high-quality FIM examples, high-level structural code blocks are extracted (e.g., functions, classes). From these blocks, logical sub-blocks (e.g., statements, expressions) are masked to serve as the "middle" section for the model to predict.
+CodeFinetuner builds FIM examples from real code structure, not random text chunks. It first extracts blocks such as functions or classes, then masks smaller sub-blocks like statements or expressions for the model to predict. This approach helps the model learn the logical structure of your codebase instead of unrelated fragments.
 
 Here is an example illustrating how a single FIM example is created:
 <table>
@@ -88,8 +88,6 @@ Here is an example illustrating how a single FIM example is created:
 <|fim_middle|>count = count + (value & 1);\n    value = (value >> 1);
 ```
 
-Using this technique, rather than randomly splitting code into unrelated text chunks, helps the model learn the logical patterns and structure of your specific codebase.
-
 ## Installation
 
 ### From PyPI
@@ -98,7 +96,7 @@ uv add codefinetuner
 # or
 pip install codefinetuner
 ```
-### From Source (Development)
+### From Source
 ```bash
 git clone --recurse-submodules https://github.com/cuolm/codefinetuner
 cd codefinetuner
@@ -118,17 +116,15 @@ Create a configuration file according to the [Configuration](#configuration) sec
 ```python
 import codefinetuner
 
-# Run the complete pipeline
 codefinetuner.run_pipeline("codefinetuner_config.yaml")
 ```
 
 ## Configuration
-
-The pipeline uses a single-source-of-truth YAML configuration file. It utilizes YAML anchors (`&globals`) to share core parameters across all stages (`preprocess`, `finetune`, `evaluate`), ensuring consistency and reducing redundancy.
+The pipeline uses a single-source-of-truth YAML configuration file. It utilizes YAML anchors (`&globals`) to share core parameters across all stages (`preprocess`, `finetune`, `evaluate`, `convert`), ensuring consistency and reducing redundancy.
 
 ### Configuration Structure
 
-Create a codefinetuner_config.yaml using the template below. For a full list of all available parameters and their effects, see the [Configuration Reference Guide](/docs/config-file.md).
+Create `codefinetuner_config.yaml` using the template below. For the full parameter list, see the [Configuration Reference Guide](/docs/config-file.md).
 
 ```yaml
 # globals contain all the mandatory parameters.
@@ -161,8 +157,11 @@ evaluate:
   benchmark_sample_size: 4
   # ... (evaluate specific settings)
 
+convert:
+  <<: *globals
+  # ... (convert specific settings)
 ```
-> **Note:** For a complete, production-ready example, see [`config/codefinetuner_config.yaml`](/config/codefinetuner_config.yaml).
+> **Note:** See [`config/codefinetuner_config.yaml`](/config/codefinetuner_config.yaml) for a full production example.
 
 ### Data Preparation
 Place source files in your `raw_data_path` (default: `workspace_path/data`).
@@ -177,9 +176,12 @@ Run the pipeline using the unified CLI:
 uv run codefinetuner --config="config/codefinetuner_config.yaml"
 ```
 
-**Pipeline Flags:**
-* `--config`: Specify path to a different config file.
-* `--skip-preprocess`, `--skip-finetune`, `--skip-evaluate`, `--skip-convert`: Skip specific stages.
+**Pipeline flags**
+- `--config`: Use a different config file.
+- `--skip-preprocess`: Skip preprocessing.
+- `--skip-finetune`: Skip fine-tuning.
+- `--skip-evaluate`: Skip evaluation.
+- `--skip-convert`: Skip conversion.
 
 ### Python Module Usage
 ```python
@@ -194,18 +196,14 @@ codefinetuner.run_pipeline(
     skip_preprocess=True,
     skip_convert=True
 )
-
-# Individual stages
-from codefinetuner import preprocess, finetune
-preprocess.run("config.yaml")
 ```
 
-## Deployment: Using the Model
-The `convert` stage converts the model to GGUF format. The final GGUF file is located under `outputs/convert/results/lora_model.gguf`.  
-For a detailed guide on how to use the gguf model with the VS Code extension [llama.vscode](https://github.com/ggml-org/llama-vscode), check out the [inference-vscode](/docs/inference-vscode.md) guide.
+## Finetuned Model Usage
+The `convert` stage exports the final model to [GGUF](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md) format for local inference. The resulting file is saved at `outputs/convert/results/lora_model.gguf`. 
+For setup instructions with the VS Code extension [llama.vscode](https://github.com/ggml-org/llama.vscode), see the [inference-vscode](/docs/inference-vscode.md) guide.
 
 
-## Create And Run Docker Image
+## Docker Image
 
 #### 1. Build the Docker Image
 Build the image from the `Dockerfile`, tagging it as codefinetuner-image.
@@ -213,10 +211,8 @@ Build the image from the `Dockerfile`, tagging it as codefinetuner-image.
 docker build -t codefinetuner-image .
 ```
 #### 2. Prepare Data and Run the Container
-To allow the container to access your data for fine-tuning, use a bind mount to link your host machine's `data` directory to the container.
-- On your host machine (where you run Docker), create a folder named `data` if it doesn't already exist.
-- Put all files you want to use for fine-tuning inside the `data` directory. For `manual` mode, include `train`, `eval`, and `test` subdirectories containing your manually splitted files.
-- Start the container with the bind mount, and open a Bash shell depending on your host machine hardware:
+To allow the container to access your data for fine-tuning, use a bind mount to link your host machine's `data` directory to the container.  
+On your host machine (where you run Docker), create a folder named `data` if it does not already exist. Put all files you want to use for fine-tuning inside the `data` directory. For manual mode, include `train`, `eval`, and `test` subfolders with the split you want to use.  
 
 #### NVIDIA GPU (Recommended)
 Use this command to enable CUDA support for `torch` and `bitsandbytes`. Requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installed on the host machine.
@@ -227,8 +223,7 @@ docker run --gpus all -it --rm \
   codefinetuner-image /bin/bash
 ```
 #### CPU Only
-
-Use this command if no compatible GPU is available. Note that fine-tuning will be significantly slower.
+Use this if you do not have a compatible GPU. Fine-tuning will be much slower.
 ```bash
 docker run -it --rm \
   -v $(pwd)/data:/app/data \
@@ -236,21 +231,22 @@ docker run -it --rm \
 ```
 
 ## Tree-sitter Customization
-Tree-sitter parses code into structural blocks for generating FIM training examples. Customize for new languages or build missing parsers.
+Tree-sitter turns source code into structural blocks used to generate FIM examples. Use this section to add new languages or build missing parsers.
 
-- [Add Language Definitions](docs/tree-sitter-customization.md#add-new-language-block-definitions) - Define `block_types`/`subblock_types` in JSON.
-- [Build Custom Parser](docs/tree-sitter-customization.md#build-custom-parser) - Compile from source (e.g., Mojo).
-
+- [Add Language Definitions](docs/tree-sitter-customization.md#add-new-language-block-definitions): define `block_types` and `subblock_types` in JSON.
+- [Build Custom Parser](docs/tree-sitter-customization.md#build-custom-parser): compile a parser from source, for example for Mojo.
 
 ## Tests
+Run the test suite with:
+
 ```bash
 pytest
 ```
 
-## Useful Resources
+## Resources
 - [Qwen2.5-Coder Technical Report](https://arxiv.org/pdf/2409.12186)
 - [Structure-Aware Fill-in-the-Middle Pretraining for Code](https://arxiv.org/pdf/2506.00204)
-- [LORA: LOW-RANK ADAPTATION OF LARGE LANGUAGE MODELS](https://arxiv.org/pdf/2106.09685)
+- [LoRA: Low-Rank Adaptation of Large Language Models](https://arxiv.org/pdf/2106.09685)
 - [Efficient Training of Language Models to Fill in the Middle](https://arxiv.org/pdf/2207.14255)
 - [From Output to Evaluation: Does Raw Instruction-Tuned Code LLMs Output Suffice for Fill-in-the-Middle Code Generation?](https://arxiv.org/pdf/2505.18789)
 - [CodeBLEU: a Method for Automatic Evaluation of Code Synthesis](https://arxiv.org/pdf/2009.10297)

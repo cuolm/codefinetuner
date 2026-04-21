@@ -39,7 +39,6 @@ Add a new entry for your language, defining the following nodes:
     ```yaml
     tree_sitter_definitions_path: "path/to/your/tree_sitter_definitions.json"
     ```
-
 ## Build Custom Parser
 If the language you want to use for fine-tuning is not present in the [tree-sitter-language-pack](https://github.com/Goldziher/tree-sitter-language-pack), you can build a tree-sitter language parser from source. Here is an example for the Mojo programming language:
 
@@ -48,7 +47,7 @@ If the language you want to use for fine-tuning is not present in the [tree-sitt
 Add the Tree-sitter language repository, e.g., to a `third_party` directory as a submodule.
 
 ```bash
-git submodule add [https://github.com/lsh/tree-sitter-mojo.git](https://github.com/lsh/tree-sitter-mojo.git) third_party/tree-sitter-mojo     
+git submodule add https://github.com/lsh/tree-sitter-mojo.git third_party/tree-sitter-mojo     
 
 cd third_party/tree-sitter-mojo
 
@@ -57,7 +56,7 @@ make
 After executing these instructions, you should have a shared library file named `libtree-sitter-mojo.so` (Linux), `libtree-sitter-mojo.dylib` (macOS), or `libtree-sitter-mojo.dll` (Windows) in the root directory of the `tree-sitter-mojo` repository.
 
 #### 2. Add Tree-sitter Language Block Definitions
-Create or add to an existing Tree-sitter language block definitions file according to [this](#add-new-tree-sitter-language-block-definitions) guide. 
+Create or add to an existing Tree-sitter language block definitions file according to [the section above](#add-new-language-block-definitions). 
 
 #### 3. Update Config File
 Update the path in the YAML config file:
