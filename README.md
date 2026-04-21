@@ -69,15 +69,15 @@ Here is an example illustrating how a single FIM example is created:
   <tr>
     <td align="center" valign="top">
       <strong>Source Code File</strong><br>
-      <img src="docs/code_file.png" alt="code_file" width="250">
+      <img src="/docs/code_file.png" alt="code_file" width="250">
     </td>
     <td align="center" valign="top">
       <strong>Code Block</strong><br>
-      <img src="docs/code_block.png" alt="code_block" width="250">
+      <img src="/docs/code_block.png" alt="code_block" width="250">
     </td>
     <td align="center" valign="top">
       <strong>One Subblock</strong><br>
-      <img src="docs/code_subblock.png" alt="code_subblock" width="250">
+      <img src="/docs/code_subblock.png" alt="code_subblock" width="250">
     </td>
   </tr>
 </table>
@@ -233,8 +233,8 @@ docker run -it --rm \
 ## Tree-sitter Customization
 Tree-sitter turns source code into structural blocks used to generate FIM examples. Use this section to add new languages or build missing parsers.
 
-- [Add Language Definitions](docs/tree-sitter-customization.md#add-new-language-block-definitions): define `block_types` and `subblock_types` in JSON.
-- [Build Custom Parser](docs/tree-sitter-customization.md#build-custom-parser): compile a parser from source, for example for Mojo.
+- [Add Language Definitions](/docs/tree-sitter-customization.md#add-new-language-block-definitions): define `block_types` and `subblock_types` in JSON.
+- [Build Custom Parser](/docs/tree-sitter-customization.md#build-custom-parser): compile a parser from source, for example for Mojo.
 
 ## Tests
 Run the test suite with:
@@ -254,4 +254,4 @@ pytest
 - [llama.vscode](https://github.com/ggml-org/llama.vscode)
 
 ## License
-Licensed under the [Apache License 2.0](LICENSE.txt).
+Licensed under the [Apache License 2.0](/LICENSE.txt).
