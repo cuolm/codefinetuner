@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]  # hatch-vcs used to sync versioning with latest git tag number 
+requires = ["hatchling", "hatch-vcs", "hatch-fancy-pypi-readme"]  # hatch-vcs used to sync versioning with latest git tag number 
 build-backend = "hatchling.build"
 
 [project]
 name = "codefinetuner"
-dynamic = ["version"]
+dynamic = ["version", "readme"]
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -59,6 +59,17 @@ addopts = "--import-mode=importlib --ignore=third_party"  # importlib-based impo
 
 [tool.hatch.version]
 source = "vcs"
+
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+# replace relative links with absolute links
+pattern = '\[(.+?)\]\(((?!https?://)\S+?)\)'
+replacement = '[\1](https://github.com/cuolm/codefinetuner/tree/master\g<2>)'
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/codefinetuner"]
