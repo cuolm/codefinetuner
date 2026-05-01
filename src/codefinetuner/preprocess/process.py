@@ -63,9 +63,9 @@ def _extract_subblock_ranges(config: Config, node: ts.Node, base_offset: int) ->
 
 def _filter_subblocks(subblock_ranges: list[Tuple[int, int]], max_bytes_per_subblock: int) -> list[Tuple[int, int]]:
     """
-     Discard subblocks that have a larger end index than max_bytes_per_subblock
+     Discard subblocks that have a larger end index than max_bytes_per_subblock.
     """
-    subblock_ranges = sorted(subblock_ranges, key=lambda x: x[1]) # sort ranges by end index
+    subblock_ranges = sorted(subblock_ranges, key=lambda x: x[1])  # sort ranges by end index
     i = 0
     while i < len(subblock_ranges) and subblock_ranges[i][1] <= max_bytes_per_subblock:
         i += 1
@@ -126,11 +126,33 @@ def create_fim_examples(config: Config, code_blocks_iter: Iterator[Tuple[bytes, 
 
         subblock_ranges = _filter_subblocks(subblock_ranges, max_bytes_per_subblock) 
         
-        code_block_utf8 = code_block_utf8[:max_bytes_per_subblock]  # Trunctate code block code if it is larger than bytes_per_code_block, we only consider subblocks inside this range.
+        code_block_utf8 = code_block_utf8[:max_bytes_per_subblock]  # trunctate code block code if it is larger than bytes_per_code_block, we only consider subblocks inside this range.
 
         fim_examples = _generate_fim_examples_from_code_block(config, code_block_utf8, subblock_ranges, bytes_per_token_ratio)
         for fim_example in fim_examples:
             yield fim_example
+
+
+def _filter_overlong_tokenized_examples(tokenized_batch: Mapping[str, List[List[int]]], max_length: int) -> Mapping[str, List[List[int]]]:
+    """
+    Remove examples whose actual token count exceeds max_length.
+    Returns filtered batch.
+    """
+    input_ids = tokenized_batch["input_ids"]
+    
+    keep_indices = []
+    for idx, token_sequence in enumerate(input_ids):
+        if len(token_sequence) <= max_length:
+            keep_indices.append(idx)
+    
+    filtered_batch = {}
+    for key, values in tokenized_batch.items():
+        filtered_values = []
+        for idx in keep_indices:
+            filtered_values.append(values[idx])
+        filtered_batch[key] = filtered_values
+    
+    return filtered_batch 
 
 
 def _save_tokenized_batch_as_jsonl(file_path: Path, batch: Mapping[str, List[List[int]]]) -> None:
@@ -154,7 +176,6 @@ def tokenize_and_save_fim_examples(config: Config, file_path: Path, fim_examples
     batch = []
     for fim_example in fim_examples_iter:
         batch.append(fim_example.decode('utf-8'))
-        examples_counter += 1
         if (len(batch) == config.tokenizer_batch_size):
             tokenized_batch = tokenizer(
                 batch,
@@ -163,7 +184,10 @@ def tokenize_and_save_fim_examples(config: Config, file_path: Path, fim_examples
                 return_attention_mask=True
             )
             tokenized_batch["labels"] = tokenized_batch["input_ids"]
-            _save_tokenized_batch_as_jsonl(file_path, tokenized_batch)
+            filtered_tokenized_batch = _filter_overlong_tokenized_examples(tokenized_batch, config.max_token_sequence_length)
+            if filtered_tokenized_batch["input_ids"]:  # dont save if no examples left after filtering
+                _save_tokenized_batch_as_jsonl(file_path, filtered_tokenized_batch)
+            examples_counter += len(filtered_tokenized_batch["input_ids"])
             batch = []
 
     # last batch is smaller than config.tokenizer_batch_size, the "rest"
@@ -175,6 +199,9 @@ def tokenize_and_save_fim_examples(config: Config, file_path: Path, fim_examples
             return_attention_mask=True
         )
         tokenized_batch["labels"] = tokenized_batch["input_ids"]
-        _save_tokenized_batch_as_jsonl(file_path, tokenized_batch)
+        filtered_tokenized_batch = _filter_overlong_tokenized_examples(tokenized_batch, config.max_token_sequence_length)
+        if filtered_tokenized_batch["input_ids"]:  # dont save if no examples left after filtering
+            _save_tokenized_batch_as_jsonl(file_path, filtered_tokenized_batch)
+        examples_counter += len(filtered_tokenized_batch["input_ids"])
 
     logger.info(f"Processed and saved {examples_counter} FIM examples to {file_path}")

@@ -24,13 +24,13 @@ class Config:
     eos_token: str = MISSING
     data_language: str = MISSING
     data_extensions: list[str] = MISSING
+    max_token_sequence_length: int = MISSING  # used with bytes_per_token_ratio to convert bytes to tokens, final token count is thus not exact
 
     # --- Preprocess Local Parameters ---
     split_mode: str = "auto"
     train_ratio: float = 0.8
     eval_ratio: float = 0.1
     test_ratio: float = 0.1
-    max_token_sequence_length: int = 1024  # used with bytes_per_token_ratio to convert bytes to tokens, final token count is thus not exact
     max_code_blocks_ast_depth: int = 2  # depth 1 is root, 2 includes child nodes (e.g. functions)
     min_middle_tokens_length: int = 20  # used with estimated bytes_per_token_ratio to convert bytes to tokens, final token count is thus not exact 
     max_middle_tokens_length: int = 200  # used with estimated bytes_per_token_ratio to convert bytes to tokens, final token count is thus not exact
