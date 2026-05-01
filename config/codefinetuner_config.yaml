@@ -9,6 +9,7 @@ globals: &globals
   fim_pad_token: "<|fim_pad|>"
   eos_token: "<|endoftext|>"
   label_pad_token_id: -100
+  max_token_sequence_length: 1024
   data_language: "c"
   data_extensions: [".c", ".h"]
 
@@ -19,7 +20,6 @@ preprocess:
   train_ratio: 0.8
   eval_ratio: 0.1
   test_ratio: 0.1
-  max_token_sequence_length: 1024
   max_code_blocks_ast_depth: 2
   min_middle_tokens_length: 20
   max_middle_tokens_length: 200
@@ -33,6 +33,7 @@ preprocess:
 # Finetune stage 
 finetune:
   <<: *globals
+  use_unsloth: True
   model_attn_implementation: "sdpa"
   lora_r: 32
   lora_alpha: 64

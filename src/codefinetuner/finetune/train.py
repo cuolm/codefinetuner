@@ -2,7 +2,6 @@ import gc
 import json
 import logging
 import shutil
-from pathlib import Path
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
@@ -88,7 +87,7 @@ def train_lora_model(
         save_steps=config.trainer_save_steps,
         bf16=trainer_bf16,  
         fp16=trainer_fp16,  
-        gradient_checkpointing=config.trainer_gradient_checkpointing
+        gradient_checkpointing=(config.trainer_gradient_checkpointing and not config.use_unsloth),
     )
 
     data_collator = FIMDataCollator(
