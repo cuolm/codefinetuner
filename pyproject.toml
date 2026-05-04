@@ -35,6 +35,7 @@ dependencies = [
     "omegaconf>=2.3.0",
     "gguf>=0.18.0",
     "sentencepiece>=0.2.1",
+    "unsloth>=2026.4.8 ; sys_platform == 'linux' or sys_platform == 'win32'",
 ]
 
 [dependency-groups]
