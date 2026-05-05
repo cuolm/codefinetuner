@@ -79,6 +79,8 @@ def _generate_fim_examples_from_code_block(config: Config, code_utf8: bytes, sub
     eos_token_utf8 = config.eos_token.encode('utf8')
     
     num_of_subblocks = len(subblock_ranges)
+    if num_of_subblocks == 0:
+        return []
     num_of_fim_examples = max(1, int(num_of_subblocks * config.fim_examples_per_subblock_ratio))  
     unique_random_subblock_indices = config.rng.choice(len(subblock_ranges), size=num_of_fim_examples, replace=False)
 
@@ -126,8 +128,6 @@ def create_fim_examples(config: Config, code_blocks_iter: Iterator[Tuple[bytes, 
 
         subblock_ranges = _filter_subblocks(subblock_ranges, max_bytes_per_subblock) 
         
-        code_block_utf8 = code_block_utf8[:max_bytes_per_subblock]  # trunctate code block code if it is larger than bytes_per_code_block, we only consider subblocks inside this range.
-
         fim_examples = _generate_fim_examples_from_code_block(config, code_block_utf8, subblock_ranges, bytes_per_token_ratio)
         for fim_example in fim_examples:
             yield fim_example
