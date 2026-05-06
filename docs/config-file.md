@@ -14,8 +14,10 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `fim_pad_token` | str | `"<\|fim_pad\|>"` | FIM padding token. |
 | `eos_token` | str | `"<\|endoftext\|>"` | End-of-sequence token. |
 | `label_pad_token_id` | int | `-100` | Token ID ignored in loss calculation. |
+| `max_token_sequence_length` | int | `1024` | Maximum tokens per training example. |
 | `data_language` | str | `"c"` | Tree-sitter language identifier. |
 | `data_extensions` | list | `[".c", ".h"]` | File extensions to include in data preprocessing. |
+| `use_unsloth` | bool | `false` | Enables Unsloth optimizations for faster training and lower VRAM. Requires CUDA.
 
 ## Preprocess Parameters (Optional)
 *Controls how raw code is converted into FIM training examples.*
@@ -26,7 +28,6 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `train_ratio` | float | `0.8` | Training set ratio (used in `auto` split). |
 | `eval_ratio` | float | `0.1` | Validation set ratio (used in `auto` split). |
 | `test_ratio` | float | `0.1` | Test set ratio (used in `auto` split). |
-| `max_token_sequence_length` | int | `1024` | Maximum tokens per training example. |
 | `max_code_blocks_ast_depth` | int | `2` | Tree-Sitter AST depth limit for block extraction. Depth 1 is root, 2 includes child nodes (e.g. functions). |
 | `min_middle_tokens_length` | int | `20` | Minimum tokens required in the FIM "middle" section of an example. |
 | `max_middle_tokens_length` | int | `200` | Maximum tokens allowed in the FIM "middle" section of an example. |
