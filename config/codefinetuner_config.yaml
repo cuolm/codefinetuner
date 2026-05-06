@@ -2,21 +2,21 @@
 # Shared across all stages 
 globals: &globals
   workspace_path: null  # null: defaults to current working directory (CWD)
-  model_name: "Qwen/Qwen2.5-0.5B" 
+  model_name: "Qwen/Qwen2.5-Coder-0.5B" 
   fim_prefix_token: "<|fim_prefix|>"
   fim_middle_token: "<|fim_middle|>"
   fim_suffix_token: "<|fim_suffix|>"
   fim_pad_token: "<|fim_pad|>"
   eos_token: "<|endoftext|>"
   label_pad_token_id: -100
-  max_token_sequence_length: 1024
+  max_token_sequence_length: 512
   data_language: "c"
   data_extensions: [".c", ".h"]
 
 # Preprocess stage
 preprocess:
   <<: *globals
-  split_mode: "manual"
+  split_mode: "auto"
   train_ratio: 0.8
   eval_ratio: 0.1
   test_ratio: 0.1
@@ -25,7 +25,7 @@ preprocess:
   max_middle_tokens_length: 200
   fim_examples_per_subblock_ratio: 1.0
   tokenizer_batch_size: 32
-  raw_data_path: "data/data_embedded"  # null: defaults to <workspace_path>/data
+  raw_data_path: null  # null: defaults to <workspace_path>/data
   tree_sitter_parser_path: null  # null: uses tree_sitter_language_pack parser
   tree_sitter_definitions_path: null  # null: uses package internal tree sitter definitions 
   rng_seed: 0
@@ -37,26 +37,26 @@ finetune:
   model_attn_implementation: "sdpa"
   lora_r: 32
   lora_alpha: 64
-  lora_dropout: 0.1
+  lora_dropout: 0.0
   lora_bias: "none"
   lora_target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "down_proj", "up_proj"]
   trainer_resume_from_checkpoint: null  # null->fresh start, "last"->take last checkpoint
   trainer_clear_checkpoint_dir: false
   trainer_num_train_epochs: 1
-  trainer_per_device_train_batch_size: 2
-  trainer_per_device_eval_batch_size: 2
-  trainer_gradient_accumulation_steps: 32
-  trainer_learning_rate: 2e-5
-  trainer_weight_decay: 0.1
+  trainer_per_device_train_batch_size: 4 
+  trainer_per_device_eval_batch_size: 4 
+  trainer_gradient_accumulation_steps: 16 
+  trainer_learning_rate: 2e-4
+  trainer_weight_decay: 0.01
   trainer_max_grad_norm: 1.0
   trainer_lr_scheduler_type: "cosine"
   trainer_warmup_steps: 50
   trainer_gradient_checkpointing: true
   trainer_logging_steps: 10
   trainer_eval_strategy: "steps"
-  trainer_eval_steps: 100
+  trainer_eval_steps: 50
   trainer_save_strategy: "steps"
-  trainer_save_steps: 100
+  trainer_save_steps: 50
   trainer_logging_strategy: "steps"
   dataset_shuffle_buffer_size: 50000
   dataset_shuffle_seed: 0
