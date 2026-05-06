@@ -100,6 +100,8 @@ def run(config: Config) -> None:
     all_metric_stats_np = []
     for metric_name, higher_is_better in config.metric_configs:
         metric_stats_np = analyze_metric(config, metric_name, higher_is_better)
+        if not metric_stats_np:  # skip empty metric stats
+            continue
         plot_path = get_plot_path(config.benchmark_evaluation_results_dir, metric_name)
         plot_metric_and_save(metric_stats_np, metric_name, plot_path)
         all_metric_stats_np.append(metric_stats_np)

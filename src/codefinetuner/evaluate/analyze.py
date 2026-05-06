@@ -12,12 +12,19 @@ logger = logging.getLogger(__name__)
 
 
 def analyze_metric(config: Config, metric_name: str, higher_is_better: bool) -> dict:
+    is_binary = False
+    if (metric_name == config.exact_match_metric_name) or (metric_name == config.line_match_metric_name):
+        is_binary = True
+
     base_scores, lora_scores = [], []
     
     with open(config.benchmark_evaluation_results_path, 'r') as evaluation_results_file:
         for line in evaluation_results_file:
+            line = line.strip()
+            if not line:
+                continue
             evaluation_example = json.loads(line)
-            if metric_name == config.codebleu_metric_name and not evaluation_example.get("codebleu_valid", True):
+            if metric_name == config.codebleu_metric_name and not evaluation_example.get("codebleu_valid", True) :
                 continue
             base_scores.append(evaluation_example[f'base_{metric_name}'])
             lora_scores.append(evaluation_example[f'lora_{metric_name}'])
@@ -39,10 +46,6 @@ def analyze_metric(config: Config, metric_name: str, higher_is_better: bool) -> 
     logger.info(f"Examples: {len(base_array_np)}")
     logger.info(f"Base average: {base_average_np:.3f} | LoRA avg: {lora_average_np:.3f}")
     logger.info(f"Improvement: {improvement_np:+.3f}")
-
-    is_binary = False
-    if (metric_name == config.exact_match_metric_name) or (metric_name == config.line_match_metric_name):
-        is_binary = True
     
     metric_stats_np =  {
         "metric": metric_name,

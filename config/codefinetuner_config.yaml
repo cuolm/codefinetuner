@@ -12,6 +12,7 @@ globals: &globals
   max_token_sequence_length: 512
   data_language: "c"
   data_extensions: [".c", ".h"]
+  use_unsloth: True
 
 # Preprocess stage
 preprocess:
@@ -33,7 +34,6 @@ preprocess:
 # Finetune stage 
 finetune:
   <<: *globals
-  use_unsloth: True
   model_attn_implementation: "sdpa"
   lora_r: 32
   lora_alpha: 64
@@ -41,10 +41,10 @@ finetune:
   lora_bias: "none"
   lora_target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "down_proj", "up_proj"]
   trainer_resume_from_checkpoint: null  # null->fresh start, "last"->take last checkpoint
-  trainer_clear_checkpoint_dir: false
+  trainer_clear_checkpoint_dir: true 
   trainer_num_train_epochs: 1
-  trainer_per_device_train_batch_size: 4 
-  trainer_per_device_eval_batch_size: 4 
+  trainer_per_device_train_batch_size: 16 
+  trainer_per_device_eval_batch_size: 16 
   trainer_gradient_accumulation_steps: 16 
   trainer_learning_rate: 2e-4
   trainer_weight_decay: 0.01
@@ -64,7 +64,7 @@ finetune:
 # Evaluate stage
 evaluate:
   <<: *globals
-  benchmark_sample_size: 4
+  benchmark_sample_size: 1000
   benchmark_min_fim_middle_tokens: 0
   benchmark_shuffle_buffer_size: 10000000
   benchmark_shuffle_seed: 42
