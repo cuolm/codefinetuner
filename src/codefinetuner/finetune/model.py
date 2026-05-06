@@ -1,4 +1,3 @@
-
 import logging
 
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
@@ -10,7 +9,14 @@ from .config import Config
 logger = logging.getLogger(__name__)
 
 
-def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:
+def load_and_configure_lora_model(config: Config):
+    if config.use_unsloth:
+        return _load_unsloth_model(config)
+    else:
+        return _load_hf_model(config)
+
+
+def _load_hf_model(config: Config) -> AutoModelForCausalLM:
     if config.device == "cuda":
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -56,4 +62,41 @@ def load_and_configure_lora_model(config: Config) -> AutoModelForCausalLM:
         target_modules=config.lora_target_modules,
     )
     lora_model = get_peft_model(model, lora_config)
+    return lora_model
+
+
+def _load_unsloth_model(config: Config):
+    # Import Unsloth lazily here so its import-time patches only affect the CUDA/Unsloth
+    # finetuning path. Importing it at module level can monkey-patch transformers/peft
+    # process-wide, change behavior for non-Unsloth code paths, and add unnecessary import overhead.
+    try:
+        from unsloth import FastLanguageModel
+    except ImportError:
+        raise ImportError("Unsloth is not installed. Run: uv add unsloth or pip install unsloth")
+    
+    if config.device != "cuda":
+        raise RuntimeError("Unsloth requires CUDA. Either set use_unsloth=false or run on a CUDA device.")
+
+
+    model, _ = FastLanguageModel.from_pretrained(
+        model_name=config.model_name,
+        max_seq_length=config.max_token_sequence_length,
+        dtype=config.model_dtype,
+        load_in_4bit=True,
+    )
+
+    lora_model = FastLanguageModel.get_peft_model(
+        model,
+        lora_alpha=config.lora_alpha,
+        lora_dropout=config.lora_dropout,
+        r=config.lora_r,
+        bias=config.lora_bias,
+        target_modules=config.lora_target_modules,
+        use_gradient_checkpointing="unsloth" if config.trainer_gradient_checkpointing else False,
+    )
+
+    logger.info(
+        f"[Unsloth] Model: {config.model_name} | Device: {config.device} | "
+        f"Dtype: {config.model_dtype} | max_seq_length: {config.max_token_sequence_length}"
+    )
     return lora_model

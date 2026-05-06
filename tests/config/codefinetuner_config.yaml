@@ -7,13 +7,13 @@ globals: &globals
   fim_pad_token: "<|fim_pad|>"
   eos_token: "<|endoftext|>"
   label_pad_token_id: -100
+  max_token_sequence_length: 1024
   data_language: "c"
   data_extensions: [".c", ".h"]
 
 preprocess:
   <<: *globals
   split_mode: "manual"
-  max_token_sequence_length: 1024
   min_middle_tokens_length: 1
   max_middle_tokens_length: 500
   fim_examples_per_subblock_ratio: 1.0

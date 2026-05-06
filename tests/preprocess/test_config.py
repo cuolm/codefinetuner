@@ -52,6 +52,7 @@ def test_load_from_yaml_ignores_unknown_keys(tmp_path):
           fim_suffix_token: "<|fim_suffix|>"
           fim_pad_token: "<|fim_pad|>"
           eos_token: "<|endoftext|>"
+          max_token_sequence_length: 1024
           data_language: "c"
           data_extensions: [".c"]
           unknown_key_that_does_not_exist: 999
@@ -74,6 +75,7 @@ def test_invalid_ratio_raises(tmp_path):
           fim_suffix_token: "<|fim_suffix|>"
           fim_pad_token: "<|fim_pad|>"
           eos_token: "<|endoftext|>"
+          max_token_sequence_length: 1024
           data_language: "c"
           data_extensions: [".c"]
           train_ratio: 0.8
@@ -121,6 +123,7 @@ def test_unknown_language_raises(tmp_path):
           fim_suffix_token: "<|fim_suffix|>"
           fim_pad_token: "<|fim_pad|>"
           eos_token: "<|endoftext|>"
+          max_token_sequence_length: 1024
           data_language: "unknown"
           data_extensions: [".unknown"]
     """)
