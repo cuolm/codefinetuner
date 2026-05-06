@@ -14,23 +14,53 @@ from .config import Config
 logger = logging.getLogger(__name__)
 
 
-def _load_lora_model(config: Config, checkpoint_path: Path) ->AutoModelForCausalLM:
-    # load base model to CPU first to prevent VRAM fragmentation/OOM
+def _load_lora_model(config: Config, checkpoint_path: Path):
+    if config.use_unsloth:
+        return _load_unsloth_lora_model(config, checkpoint_path)
+    else:
+        return _load_hf_lora_model(config, checkpoint_path)
+
+
+def _load_hf_lora_model(config: Config, checkpoint_path: Path):
+    # load base model
     base_model = AutoModelForCausalLM.from_pretrained(
         pretrained_model_name_or_path=config.model_name,
         dtype=config.model_dtype,
         low_cpu_mem_usage=True
     )
 
-    # load and attach LoRA adapter and move to device (CUDA, MPS or remains on CPU)
+    # attach LoRA adapter to base model
     lora_model = PeftModel.from_pretrained(
-        model=base_model, 
+        model=base_model,
         model_id=checkpoint_path
     ).to(config.device)
-
     lora_model.eval()
+    logger.info(f"Loaded HF LoRA model from checkpoint {checkpoint_path} to device {config.device}")
+    return lora_model
 
-    logger.info(f"Loaded LoRA model from checkpoint {checkpoint_path} to device {config.device}")
+
+def _load_unsloth_lora_model(config: Config, checkpoint_path: Path):
+    try:
+        from unsloth import FastLanguageModel
+    except ImportError:
+        raise ImportError("Unsloth is not installed.")
+
+    # load base model
+    model, _ = FastLanguageModel.from_pretrained(
+        model_name=config.model_name,
+        max_seq_length=config.max_token_sequence_length,
+        dtype=config.model_dtype,
+        load_in_4bit=True,
+    )
+
+    # attach LoRA adapter to base model 
+    from peft import PeftModel
+    lora_model = PeftModel.from_pretrained(
+        model=model,
+        model_id=checkpoint_path
+    )
+    lora_model.eval()
+    logger.info(f"Loaded Unsloth LoRA model from {checkpoint_path}")
     return lora_model
 
 

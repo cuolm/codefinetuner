@@ -18,9 +18,7 @@ class Config:
     fim_pad_token: str = MISSING
     label_pad_token_id: int = MISSING
     max_token_sequence_length: int = MISSING 
-
-    # --- Unsloth Settings ---
-    use_unsloth: bool = False
+    use_unsloth: bool = MISSING
 
     # --- Model Settings ---
     model_attn_implementation: str = "sdpa"  # sdpa = built-in PyTorch implementation of scaled dot product attention, imporves performance and memory efficiency

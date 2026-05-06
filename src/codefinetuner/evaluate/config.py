@@ -22,6 +22,8 @@ class Config:
     fim_pad_token: str = MISSING 
     eos_token: str = MISSING 
     label_pad_token_id: int = MISSING
+    max_token_sequence_length: int = MISSING 
+    use_unsloth: bool = MISSING
 
     # --- Benchmark ---
     benchmark_sample_size: int = 4
