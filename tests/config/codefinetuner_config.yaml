@@ -10,6 +10,7 @@ globals: &globals
   max_token_sequence_length: 1024
   data_language: "c"
   data_extensions: [".c", ".h"]
+  use_unsloth: True
 
 preprocess:
   <<: *globals

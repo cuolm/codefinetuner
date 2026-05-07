@@ -53,6 +53,7 @@ def test_load_from_yaml_ignores_unknown_keys(tmp_path):
           max_token_sequence_length: 1024
           data_language: "c"
           data_extensions: [".c", ".h"]
+          use_unsloth: True
           unknown_key_that_does_not_exist: 999
     """)
     test_config_path = tmp_path / "test_config.yaml"

@@ -12,6 +12,8 @@ test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 from codefinetuner.evaluate.config import Config
 from codefinetuner.evaluate.generate import (
     _load_lora_model,
+    _load_hf_lora_model,
+    _load_unsloth_lora_model,
     _get_fim_perplexity,
     _generate,
     generate_and_save,
@@ -35,14 +37,36 @@ def tokenizer(config) -> AutoTokenizer:
 
 # --- _load_lora_model ---
 
-def test_load_lora_model(config, mocker, tmp_path):
+def test_load_lora_model_dispatches_to_hf(config, mocker, tmp_path):
+    config.use_unsloth = False
+
+    hf_mock = mocker.patch("codefinetuner.evaluate.generate._load_hf_lora_model")
+    _load_lora_model(config, tmp_path / "checkpoint-test")
+
+    hf_mock.assert_called_once_with(config, tmp_path / "checkpoint-test")
+
+
+def test_load_lora_model_dispatches_to_unsloth(config, mocker, tmp_path):
+    config.use_unsloth = True
+
+    unsloth_mock = mocker.patch("codefinetuner.evaluate.generate._load_unsloth_lora_model")
+    _load_lora_model(config, tmp_path / "checkpoint-test")
+
+    unsloth_mock.assert_called_once_with(config, tmp_path / "checkpoint-test")
+
+
+# --- _load_hf_lora_model ---
+
+def test_load_hf_lora_model(config, mocker, tmp_path):
+    config.use_unsloth = False
+
     base_model = mocker.Mock()
     base_model_mock = mocker.patch("codefinetuner.evaluate.generate.AutoModelForCausalLM.from_pretrained", return_value=base_model)
     lora_model = mocker.Mock()
-    peft_model_mock = mocker.patch("codefinetuner.evaluate.generate.PeftModel.from_pretrained", return_value = lora_model)
+    peft_model_mock = mocker.patch("codefinetuner.evaluate.generate.PeftModel.from_pretrained", return_value=lora_model)
     lora_model.to.return_value = lora_model
 
-    result = _load_lora_model(config, tmp_path / "checkpoint-test")
+    result = _load_hf_lora_model(config, tmp_path / "checkpoint-test")
 
     base_model_mock.assert_called_once_with(
         pretrained_model_name_or_path=config.model_name,
@@ -55,8 +79,46 @@ def test_load_lora_model(config, mocker, tmp_path):
     )
     lora_model.to.assert_called_once_with(config.device)
     lora_model.eval.assert_called_once()
-
     assert result is lora_model
+
+
+# --- _load_unsloth_lora_model ---
+
+def test_load_unsloth_lora_model(config, mocker, tmp_path):
+    config.use_unsloth = True
+
+    mock_unsloth = mocker.MagicMock()
+    mocker.patch.dict("sys.modules", {"unsloth": mock_unsloth})
+
+    mock_model = mocker.MagicMock()
+    mock_unsloth.FastLanguageModel.from_pretrained.return_value = (mock_model, None)
+    lora_model = mocker.Mock()
+    peft_model_mock = mocker.patch("codefinetuner.evaluate.generate.PeftModel.from_pretrained", return_value=lora_model)
+
+    result = _load_unsloth_lora_model(config, tmp_path / "checkpoint-test")
+
+    mock_unsloth.FastLanguageModel.from_pretrained.assert_called_once_with(
+        model_name=config.model_name,
+        max_seq_length=config.max_token_sequence_length,
+        dtype=config.model_dtype,
+        load_in_4bit=True,
+    )
+    peft_model_mock.assert_called_once_with(
+        model=mock_model,
+        model_id=tmp_path / "checkpoint-test",
+    )
+    lora_model.eval.assert_called_once()
+    assert result is lora_model
+
+
+def test_load_unsloth_lora_model_raises_import_error(config, mocker, tmp_path):
+    config.use_unsloth = True
+
+    mocker.patch.dict("sys.modules", {"unsloth": None})
+
+    with pytest.raises(ImportError, match="Unsloth is not installed."):
+        _load_unsloth_lora_model(config, tmp_path / "checkpoint-test")
+
 
 
 # --- _get_fim_perplexity ---
