@@ -134,7 +134,11 @@ def get_exact_match(reference: str, prediction: str) -> float:
 
 
 def get_line_match(config: Config, reference: str, prediction: str) -> float:
-    """Check if the first n lines match, ignoring trailing whitespace."""
+    """"
+    Checks if the prediction matches the reference up to n lines.
+    If the reference has fewer than n lines, it matches against the full reference.
+    Ignores trailing whitespaces.
+    """
     try:
         n = config.line_match_number_of_lines
 
@@ -147,11 +151,16 @@ def get_line_match(config: Config, reference: str, prediction: str) -> float:
         for line in prediction.splitlines()[:n]:
             pred_lines_stripped.append(line.rstrip())
 
-        # Ensure both lists have the required number of lines
-        if len(pred_lines_stripped) < n or len(ref_lines_stripped) < n:
+        if not ref_lines_stripped:
             return 0.0
 
-        if pred_lines_stripped == ref_lines_stripped:
+        # we can only match up to the actual number of lines of the reference 
+        effective_n = min(len(ref_lines_stripped), n)
+
+        if len(pred_lines_stripped) < effective_n:
+            return 0.0
+
+        if pred_lines_stripped[:effective_n] == ref_lines_stripped[:effective_n]:
             return 1.0
         else:
             return 0.0
