@@ -1,8 +1,7 @@
-# config/pipeline.yaml - Single Source of Truth
 # Shared across all stages 
 globals: &globals
   workspace_path: null  # null: defaults to current working directory (CWD)
-  model_name: "Qwen/Qwen2.5-Coder-0.5B" 
+  model_name: "unsloth/Qwen3.5-2B-Base" 
   fim_prefix_token: "<|fim_prefix|>"
   fim_middle_token: "<|fim_middle|>"
   fim_suffix_token: "<|fim_suffix|>"
@@ -26,7 +25,7 @@ preprocess:
   max_middle_tokens_length: 200
   fim_examples_per_subblock_ratio: 1.0
   tokenizer_batch_size: 32
-  raw_data_path: null  # null: defaults to <workspace_path>/data
+  raw_data_path: data/zephyr_subsys  # null: defaults to <workspace_path>/data
   tree_sitter_parser_path: null  # null: uses tree_sitter_language_pack parser
   tree_sitter_definitions_path: null  # null: uses package internal tree sitter definitions 
   rng_seed: 0
@@ -43,8 +42,8 @@ finetune:
   trainer_resume_from_checkpoint: null  # null->fresh start, "last"->take last checkpoint
   trainer_clear_checkpoint_dir: true 
   trainer_num_train_epochs: 1
-  trainer_per_device_train_batch_size: 16 
-  trainer_per_device_eval_batch_size: 16 
+  trainer_per_device_train_batch_size: 8
+  trainer_per_device_eval_batch_size: 8 
   trainer_gradient_accumulation_steps: 16 
   trainer_learning_rate: 2e-4
   trainer_weight_decay: 0.01
@@ -70,8 +69,8 @@ evaluate:
   benchmark_shuffle_seed: 42
   generation_max_new_tokens: 128
   generation_do_sample: false
-  generation_temperature: 0.7
-  generation_top_p: 0.95
+  generation_temperature: 0.1  # only active if generation_do_sample: true
+  generation_top_p: 0.99  # only active if generation_do_sample: true
   codebleu_language: "c"
   codebleu_ngram_weight: 0.25
   codebleu_weighted_ngram_weight: 0.25
