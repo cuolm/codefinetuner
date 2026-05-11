@@ -55,7 +55,10 @@ class Config:
         pkg_root = self.workspace_path / "src" / "codefinetuner" / "convert"
         self.convert_hf_to_gguf_local_path = pkg_root / "convert_hf_to_gguf.py"
         self.lora_model_path = self.workspace_path / "outputs" / "finetune" / "results" / "lora_model"
-        self.lora_model_gguf_path = self.workspace_path / "outputs" / "convert" / "results" / "lora_model.gguf"
+
+        model_short_name = self.model_name.split("/")[-1]
+        model_name_gguf = f"{model_short_name}-lora-merged.gguf"
+        self.lora_model_gguf_path = self.workspace_path / "outputs" / "convert" / "results" / model_name_gguf
 
     def _ensure_output_paths_exist(self) -> None:
         parent_dir = self.lora_model_gguf_path.parent
