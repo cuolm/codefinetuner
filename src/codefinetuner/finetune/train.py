@@ -120,6 +120,57 @@ def train_lora_model(
     return log_history
 
 
+def save_lora(config: Config) -> None:
+    if config.lora_save_strategy == "last":
+        all_checkpoint_paths = list(config.trainer_checkpoints_dir_path.glob("checkpoint-*"))
+        if not all_checkpoint_paths:
+            raise FileNotFoundError(f"No checkpoints found in {config.trainer_checkpoints_dir_path}")
+
+        # find the checkpoint with the highest step number
+        highest_step = -1
+        selected_checkpoint_path = None
+        for checkpoint_path in all_checkpoint_paths:
+            step = int(checkpoint_path.name.split("-")[-1])
+            if step > highest_step:
+                highest_step = step
+                selected_checkpoint_path = checkpoint_path
+
+        logger.info(f"lora_save_strategy='last': saving checkpoint {selected_checkpoint_path.name}")
+
+    elif config.lora_save_strategy == "best":
+        with config.trainer_log_path.open("r", encoding="utf-8") as f:
+            log = json.load(f)
+
+        if not log["eval"]["steps"]:
+            raise ValueError("No eval steps found in trainer log. Cannot determine best checkpoint.")
+
+        # find the step with the lowest eval loss
+        best_step = None
+        best_loss = float("inf")
+        for i in range(len(log["eval"]["steps"])):
+            loss = log["eval"]["loss"][i]
+            step = log["eval"]["steps"][i]
+            if loss < best_loss:
+                best_loss = loss
+                best_step = step
+
+        selected_checkpoint_path = config.trainer_checkpoints_dir_path / f"checkpoint-{best_step}"
+        if not selected_checkpoint_path.exists():
+            raise FileNotFoundError(f"Best checkpoint at step {best_step} (eval_loss={best_loss:.4f}) not found at {selected_checkpoint_path}.")
+        logger.info(f"lora_save_strategy='best': step={best_step}, eval_loss={best_loss:.4f}")
+
+    else:
+        raise ValueError(f"Invalid lora_save_strategy '{config.lora_save_strategy}'. Must be 'best' or 'last'.")
+
+    # atomic copy
+    temp_adapter_path = config.lora_adapter_path.with_suffix(".tmp")
+    shutil.copytree(selected_checkpoint_path, temp_adapter_path)
+
+    if config.lora_adapter_path.exists():
+        shutil.rmtree(config.lora_adapter_path)
+    temp_adapter_path.rename(config.lora_adapter_path)
+
+
 def merge_lora_and_save(config: Config, tokenizer: AutoTokenizer) -> None:
     gc.collect()  # force garbage collection
 

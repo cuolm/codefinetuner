@@ -33,6 +33,7 @@ class Config:
         "q_proj", "v_proj", "k_proj", "o_proj",
         "gate_proj", "down_proj", "up_proj"
     ])
+    lora_save_strategy: str = "best"
 
     # --- Trainer Hyperparameters ---
     trainer_resume_from_checkpoint: str | None = "last"

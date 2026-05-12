@@ -49,6 +49,7 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `lora_dropout` | float | `0.1` | Dropout probability for LoRA layers to prevent overfitting on specific code snippets. |
 | `lora_bias` | str | `"none"` | Specifies if bias parameters are trained (`"none"`, `"all"`, `"lora_only"`). |
 | `lora_target_modules` | list | `["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "down_proj", "up_proj"]` | Model layers targeted for adaptation. Increasing the list improves performance but consumes more VRAM. |
+| `lora_save_strategy` | str | "best" |Which checkpoint to save as the final LoRA adapter. "best" selects the checkpoint with the lowest eval loss, "last" saves the final checkpoint regardless of eval performance. |
 | `trainer_resume_from_checkpoint` | str/null| `null` | Path to a specific checkpoint or `"last"` to continue a previous run. |
 | `trainer_clear_checkpoint_dir` | bool | `false` | If `true`, deletes the output folder before starting a new training run. |
 | `trainer_num_train_epochs` | int | `1` | Total passes through the training dataset. |

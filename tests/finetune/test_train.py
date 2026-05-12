@@ -13,6 +13,7 @@ from codefinetuner.finetune.train import (
     FIMDataCollator,
     train_lora_model,
     merge_lora_and_save,
+    save_lora,
     save_log,
     plot_loss
 )
@@ -22,7 +23,7 @@ from codefinetuner.finetune.train import (
 
 @pytest.fixture
 def config() -> Config:
-    """Load a Config from the test YAML and redirect paths to tmp_path."""
+    """Load a Config from the test YAML."""
     test_config = Config.load_from_yaml(test_config_path)
     return test_config
 
@@ -143,6 +144,125 @@ def test_train_lora_model(config, tokenizer, mocker):
     training_arguments_mock.assert_called_once()
     data_collator_mock.assert_called_once()
     trainer_mock.assert_called_once()
+
+
+# --- save_lora ---
+
+def test_save_lora_last(config, tmp_path):
+    config.lora_save_strategy = "last"
+    config.trainer_checkpoints_dir_path = tmp_path / "checkpoints"
+
+    # create dummy checkpoint folders with dummy marker 
+    config.trainer_checkpoints_dir_path.mkdir()
+    for step in [10, 20, 30, 40, 50]:
+        cp_dir = config.trainer_checkpoints_dir_path / f"checkpoint-{step}"
+        cp_dir.mkdir()
+        (cp_dir / f"marker_{step}.txt").touch()
+
+    config.lora_adapter_path = tmp_path / "lora_adapter"
+    config.trainer_log_path = tmp_path / "train_log.json" 
+    log_data = {
+        "eval": {
+            "steps": [10, 20, 30, 40, 50],
+            "loss": [1.587, 1.232, 1.045, 0.897, 1.023] 
+        }
+    }
+    config.trainer_log_path.write_text(json.dumps(log_data))
+
+    save_lora(config)
+
+    adapter_files = list(config.lora_adapter_path.iterdir())
+
+    assert len(adapter_files) == 1
+    assert adapter_files[0].name == "marker_50.txt"
+    # Verify the atomic temp folder was cleaned up
+    assert not config.lora_adapter_path.with_suffix(".tmp").exists()
+    
+
+def test_save_lora_best(config, tmp_path):
+    config.lora_save_strategy = "best"
+    config.trainer_checkpoints_dir_path = tmp_path / "checkpoints"
+
+    # create dummy checkpoint folders with dummy marker 
+    config.trainer_checkpoints_dir_path.mkdir()
+    for step in [10, 20, 30, 40, 50]:
+        cp_dir = config.trainer_checkpoints_dir_path / f"checkpoint-{step}"
+        cp_dir.mkdir()
+        (cp_dir / f"marker_{step}.txt").touch()
+
+    config.lora_adapter_path = tmp_path / "lora_adapter"
+    config.trainer_log_path = tmp_path / "train_log.json" 
+    log_data = {
+        "eval": {
+            "steps": [10, 20, 30, 40, 50],
+            "loss": [1.587, 1.232, 1.045, 0.897, 1.023] 
+        }
+    }
+    config.trainer_log_path.write_text(json.dumps(log_data))
+
+    save_lora(config)
+
+    adapter_files = list(config.lora_adapter_path.iterdir())
+
+    assert len(adapter_files) == 1
+    assert adapter_files[0].name == "marker_40.txt"
+    # Verify the atomic temp folder was cleaned up
+    assert not config.lora_adapter_path.with_suffix(".tmp").exists()
+
+
+def test_save_lora_invalid_strategy_raises(config):
+    config.lora_save_strategy = "random"
+
+    with pytest.raises(ValueError, match="Invalid lora_save_strategy"):
+        save_lora(config)
+        
+
+def test_save_lora_last_no_checkpoints_raises(config, tmp_path):
+    config.lora_save_strategy = "last"
+    config.trainer_checkpoints_dir_path = tmp_path / "checkpoints"
+    config.trainer_checkpoints_dir_path.mkdir()
+
+    with pytest.raises(FileNotFoundError, match="No checkpoints found"):
+        save_lora(config)
+
+
+def test_save_lora_best_checkpoint_missing_on_disk_raises(config, tmp_path):
+    config.lora_save_strategy = "best"
+    config.trainer_checkpoints_dir_path = tmp_path / "checkpoints"
+    config.trainer_checkpoints_dir_path.mkdir()
+    config.trainer_log_path = tmp_path / "train_log.json"
+
+    # only create checkpoints for steps 10 and 20, best (step 40) is missing
+    for step in [10, 20]:
+        cp_dir = config.trainer_checkpoints_dir_path / f"checkpoint-{step}"
+        cp_dir.mkdir()
+
+    log_data = {
+        "eval": {
+            "steps": [10, 20, 40],
+            "loss": [1.587, 1.232, 0.897]
+        }
+    }
+    config.trainer_log_path.write_text(json.dumps(log_data))
+
+    with pytest.raises(FileNotFoundError, match="checkpoint-40"):
+        save_lora(config)
+
+
+def test_save_lora_best_empty_eval_steps_raises(config, tmp_path):
+    config.lora_save_strategy = "best"
+    config.trainer_log_path = tmp_path / "train_log.json"
+
+    log_data = {
+        "eval": {
+            "steps": [],
+            "loss": []
+        }
+    }
+    config.trainer_log_path.write_text(json.dumps(log_data))
+
+    with pytest.raises(ValueError, match="No eval steps found"):
+        save_lora(config)
 
 
 # --- merge_lora_and_save ---
