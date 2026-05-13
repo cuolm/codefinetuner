@@ -112,7 +112,6 @@ def train_lora_model(
     else:
         trainer.train()  # train from scratch
 
-    lora_model.save_pretrained(config.lora_adapter_path) # save lora adapter only
     log_history = trainer.state.log_history
 
     del trainer

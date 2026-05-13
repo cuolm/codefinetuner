@@ -10,7 +10,7 @@ from transformers import AutoTokenizer
 
 from .config import Config
 from .model import load_and_configure_lora_model
-from .train import plot_loss, save_log, train_lora_model, merge_lora_and_save
+from .train import train_lora_model, save_log, save_lora, merge_lora_and_save, plot_loss
 
 
 logger = logging.getLogger(__name__)
@@ -116,9 +116,9 @@ def run(config: Config) -> None:
     tokenizer.padding_side = "right"
 
     log_history = train_lora_model(config, lora_model, tokenizer, train_dataset, eval_dataset)
-    merge_lora_and_save(config, tokenizer)
     save_log(config, log_history)
-
+    save_lora(config)
+    merge_lora_and_save(config, tokenizer)
     plot_loss(config)
 
 
