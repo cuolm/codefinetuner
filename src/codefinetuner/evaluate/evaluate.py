@@ -2,7 +2,7 @@ import json
 import logging
 
 from .config import Config
-from .metrics import get_codebleu, get_exact_match, get_line_match, get_sentencebleu
+from .metrics import get_codebleu, get_exact_match, get_line_match, get_sentencebleu, get_edit_similarity
 
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,9 @@ def evaluate_and_save(config: Config) -> None:
                 base_lm = get_line_match(config, ref, base_gen)
                 lora_lm = get_line_match(config, ref, lora_gen)
 
+                base_es = get_edit_similarity(ref, base_gen)
+                lora_es = get_edit_similarity(ref, lora_gen)
+
                 result.update({
                     "base_codebleu": base_cb,
                     "lora_codebleu": lora_cb,
@@ -46,6 +49,8 @@ def evaluate_and_save(config: Config) -> None:
                     "lora_exact_match": lora_em,
                     "base_line_match": base_lm,
                     "lora_line_match": lora_lm,
+                    "base_edit_similarity": base_es,
+                    "lora_edit_similarity": lora_es,
                 })
 
                 tmp_file.write(json.dumps(result) + "\n")

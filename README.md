@@ -36,7 +36,7 @@ Raw Code Files
 [Finetune]    -- LoRA adapter training -> merged safetensors model
      |
      v
-[Evaluate]    -- CodeBLEU, SentenceBLEU, exact match, line match, perplexity
+[Evaluate]    -- CodeBLEU, SentenceBLEU, edit similarity, exact match, line match, perplexity
      |
      v
 [Convert]      -- GGUF conversion -> quantized model for deployment
@@ -137,13 +137,14 @@ globals: &globals
   fim_pad_token: "<|fim_pad|>"
   eos_token: "<|endoftext|>"
   label_pad_token_id: -100
+  max_token_sequence_length: 512
   data_language: "c"
   data_extensions: [".c", ".h"]
+  use_unsloth: True
 
 preprocess:
   <<: *globals  # inherits all global parameters
   split_mode: "manual"
-  max_token_sequence_length: 1024
   # ... (preprocess specific settings)
 
 finetune:

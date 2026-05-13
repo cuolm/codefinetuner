@@ -2,6 +2,7 @@ import logging
 import re
 from nltk.tokenize import word_tokenize
 from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
+from rapidfuzz.distance import Levenshtein
 
 from .codebleu_shim import codebleu_score
 from .config import Config
@@ -118,7 +119,10 @@ def get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
 
 
 def get_exact_match(reference: str, prediction: str) -> float:
-    """Exact match is 1.0 if identical, 0.0 otherwise. Collapese all whitespaces."""
+    """
+    Exact match is 1.0 if identical, 0.0 otherwise. Collapese all whitespaces.
+    Answers: "Did the model predict the right code logic regardless of formatting?"
+    """
     try:
         # re.sub(r'\s+', ' ', text.strip()): Collapses whitespace to compare logic regardless of formatting.
         ref_norm = re.sub(r'\s+', ' ', reference.strip())
@@ -138,6 +142,7 @@ def get_line_match(config: Config, reference: str, prediction: str) -> float:
     Checks if the prediction matches the reference up to n lines.
     If the reference has fewer than n lines, it matches against the full reference.
     Ignores trailing whitespaces.
+    Answers: "Did the model predict the right first n lines including structure?"
     """
     try:
         n = config.line_match_number_of_lines
@@ -166,4 +171,23 @@ def get_line_match(config: Config, reference: str, prediction: str) -> float:
             return 0.0
     except Exception as e:
         logger.warning(f"Line match calculation failed, returning 0.0: {e}")
+        return 0.0
+
+
+def get_edit_similarity(reference: str, prediction: str) -> float:
+    """
+    Edit Similarity: 1 - Levenshtein(prediction, reference) / max(len(prediction), len(reference))
+    Returns 1.0 for identical strings, 0.0 for completely different strings.
+    Answers: "How close is the prediction to the reference at the character level?"
+    """
+    try:
+        if not reference and not prediction:
+            return 1.0
+        if not reference or not prediction:
+            return 0.0
+
+        return float(Levenshtein.normalized_similarity(prediction, reference))
+
+    except Exception as e:
+        logger.warning(f"Edit similarity calculation failed, returning 0.0: {e}")
         return 0.0
