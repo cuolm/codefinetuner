@@ -42,7 +42,15 @@ def _setup_logger(log_level: str) -> None:
                 "handlers": ["stderr_handler"],
                 "level": log_level,
                 "propagate": False,
-            }
+            },           
+            "httpx": {  # silence httpx HTTP request logs
+                "level": "WARNING",
+                "propagate": False,
+            },
+            "huggingface_hub": {  # optional: silence HF hub logs too
+                "level": "WARNING",
+                "propagate": False,
+            },
         },
     }
     logging.config.dictConfig(logger_config)
