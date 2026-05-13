@@ -80,13 +80,17 @@ def _get_fim_perplexities(config: Config, model: AutoModelForCausalLM,
     """
     perplexities = []
     for input_ids, label_ids in zip(perplexity_input_token_ids_batch, perplexity_label_token_ids_batch):
-        input_tensor = torch.tensor([input_ids], device=config.device)
-        label_tensor = torch.tensor([label_ids], device=config.device)
-        
-        with torch.inference_mode():
-            outputs = model(input_ids=input_tensor, labels=label_tensor)
-            loss = outputs.loss
-            perplexities.append(math.exp(loss.item()))
+        try:
+            input_tensor = torch.tensor([input_ids], device=config.device)
+            label_tensor = torch.tensor([label_ids], device=config.device)
+            
+            with torch.inference_mode():
+                outputs = model(input_ids=input_tensor, labels=label_tensor)
+                loss = outputs.loss
+                perplexities.append(math.exp(loss.item()))
+        except Exception as e:
+            logger.warning(f"Perplexity failed for example, returning inf: {e}")
+            perplexities.append(float('inf'))
     return perplexities
 
 
@@ -107,7 +111,7 @@ def _generate(config: Config, model: AutoModelForCausalLM, tokenizer: AutoTokeni
     with torch.inference_mode():
         generated_token_ids_tensor = model.generate(
             input_ids=input_ids,
-            attention_mask=attention_mask, # Critical for batching
+            attention_mask=attention_mask, 
             max_new_tokens=config.generation_max_new_tokens,
             do_sample=config.generation_do_sample,
             temperature=config.generation_temperature,

@@ -7,7 +7,8 @@ from codefinetuner.evaluate.metrics import (
     get_codebleu,
     get_sentencebleu,
     get_exact_match,
-    get_line_match
+    get_line_match,
+    get_edit_similarity
 )
 
 tests_path = pathlib.Path(__file__).parent.parent
@@ -78,7 +79,6 @@ def test_get_codebleu_exception(config, mocker):
     score, valid = get_codebleu(config, "ref", "pred")
     assert score == 0.0
     assert valid is False
-
 
 
 def test_get_codebleu_invalid_structure(config, mocker):
@@ -199,3 +199,41 @@ def test_get_line_match_prediction_too_short_returns_zero(config):
     prediction = "line1"
     score = get_line_match(config, reference, prediction)
     assert score == 0.0
+
+
+# --- get_edit_similarity ---
+
+def test_get_edit_similarity_identical():
+    score = get_edit_similarity("line", "line")
+    assert score == 1.0
+
+
+def test_get_edit_similarity_both_empty():
+    score = get_edit_similarity("", "")
+    assert score == 1.0
+
+
+def test_get_edit_similarity_reference_empty():
+    score = get_edit_similarity("", "some code")
+    assert score == 0.0
+
+
+def test_get_edit_similarity_prediction_empty():
+    score = get_edit_similarity("some code", "")
+    assert score == 0.0
+
+
+def test_get_edit_similarity_exception(mocker):
+    mocker.patch("codefinetuner.evaluate.metrics.Levenshtein.normalized_similarity", side_effect=Exception("Simulated error"))
+    score = get_edit_similarity("ref", "pred")
+    assert score == 0.0
+
+
+def test_get_edit_similarity_integration_high_score():
+    score = get_edit_similarity(C_FUNCTION, C_FUNCTION)
+    assert score == 1.0
+
+
+def test_get_edit_similarity_integration_low_score():
+    score = get_edit_similarity(C_FUNCTION, C_VARIABLE)
+    assert score < 0.3
