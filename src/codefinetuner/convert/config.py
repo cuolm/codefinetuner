@@ -3,7 +3,7 @@ import importlib.metadata
 import httpx
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from omegaconf import OmegaConf 
+from omegaconf import OmegaConf, MISSING
 
 
 logger = logging.getLogger(__name__)
@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Config:
+    model_name: str = MISSING  
     workspace_path: Path | None = None 
     convert_hf_to_gguf_local_path: Path = field(init=False)
     lora_model_path: Path = field(init=False)
