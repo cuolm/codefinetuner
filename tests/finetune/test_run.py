@@ -115,8 +115,9 @@ def test_run(config, mocker):
     load_and_configure_lora_model_mock = mocker.patch("codefinetuner.finetune.run.load_and_configure_lora_model")
     tokenizer_mock = mocker.patch("codefinetuner.finetune.run.AutoTokenizer.from_pretrained")
     train_mock = mocker.patch("codefinetuner.finetune.run.train_lora_model", return_value=[{"loss": 0.5}])
-    merge_lora_and_save_mock = mocker.patch("codefinetuner.finetune.run.merge_lora_and_save")
     save_log_mock = mocker.patch("codefinetuner.finetune.run.save_log")
+    save_lora_mock = mocker.patch("codefinetuner.finetune.run.save_lora")
+    merge_lora_and_save_mock = mocker.patch("codefinetuner.finetune.run.merge_lora_and_save")
     plot_loss_mock = mocker.patch("codefinetuner.finetune.run.plot_loss")
 
     run(config)
@@ -125,7 +126,8 @@ def test_run(config, mocker):
     load_datasets_mock.assert_called_once()
     load_and_configure_lora_model_mock.assert_called_once()
     tokenizer_mock.assert_called_once()
-    merge_lora_and_save_mock.assert_called_once()
     save_log_mock.assert_called_once_with(config, [{"loss": 0.5}])
+    save_lora_mock.assert_called_once()
+    merge_lora_and_save_mock.assert_called_once()
     plot_loss_mock.assert_called_once()
  
