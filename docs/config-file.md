@@ -81,6 +81,7 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `benchmark_shuffle_buffer_size` | int | `10000000` | Size of the shuffle buffer used to shuffle benchmark examples. |
 | `benchmark_shuffle_seed` | int | `42` | Random seed ensuring that dataset shuffling is deterministic and reproducible. |
 | `benchmark_use_existing_dataset` | bool | `false` | If `true`, the pipeline reuses a previously generated benchmark dataset file instead of creating a new one. |
+| `generation_batch_size` | int | `10` | The number of examples processed in parallel. Increasing this value maximizes GPU hardware utilization and significantly reduces total evaluation time.|
 | `generation_max_new_tokens` | int | `128` | Upper limit on the number of tokens the models are permitted to generate for each code completion. |
 | `generation_do_sample` | bool | `false` | Enables probabilistic sampling. If `false`, the model uses greedy decoding (picking only the top token) and `generation_temperature` and `generation_top_p` are ignored.|
 | `generation_temperature` | float | `0.7` | Probability smoothing factor. Values < 1.0 make the model more confident; > 1.0 make it more random. Only active when `generation_do_sample` is `true`.|

@@ -32,6 +32,7 @@ class Config:
     benchmark_shuffle_seed: int = 42 
 
     # --- Generation ---
+    generation_batch_size: int = 10
     generation_max_new_tokens: int = 128 
     generation_do_sample: bool = False  # note: if set to False temperature and top_p have no effect
     generation_temperature: float = 0.7
@@ -60,6 +61,7 @@ class Config:
     line_match_metric_name: str = "line_match"
     line_match_number_of_lines: int = 2  
     perplexity_name: str = "perplexity"
+    edit_similarity: str = "edit_similarity"
 
     # --- Execution Controls ---
     trainer_checkpoint: str = "last"  # "last"->use last checkpoint in  trainer_checkpoints_dir_path
@@ -172,6 +174,7 @@ class Config:
             (self.exact_match_metric_name, True),
             (self.line_match_metric_name, True),
             (self.perplexity_name, False),
+            (self.edit_similarity, True)
         ]
      
     def ensure_nltk_initialized(self) -> None:
