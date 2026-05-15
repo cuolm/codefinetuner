@@ -152,14 +152,14 @@ def select_checkpoint_and_save(config: Config) -> None:
 
         # find the checkpoint with the highest step number
         highest_step = -1
-        selected_checkpoint_path = None
+        selected_checkpoint= None
         for checkpoint_path in all_checkpoint_paths:
             step = int(checkpoint_path.name.split("-")[-1])
             if step > highest_step:
                 highest_step = step
-                selected_checkpoint_path = checkpoint_path
+                selected_checkpoint = checkpoint_path
 
-        logger.info(f"selected_checkpoint_strategy='last': saving checkpoint {selected_checkpoint_path.name}")
+        logger.info(f"selected_checkpoint_strategy='last': saving checkpoint {selected_checkpoint.name}")
 
     elif config.selected_checkpoint_strategy == "best":
         with config.trainer_log_path.open("r", encoding="utf-8") as f:

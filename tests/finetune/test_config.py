@@ -77,7 +77,7 @@ def test_ensure_output_paths_exist_creates_parent_dirs(config):
     assert config.trainer_model_merge_offload_folder_path.parent.exists()
     assert config.trainer_log_path.parent.exists() 
     assert config.trainer_plot_path.parent.exists()
-    assert config.lora_adapter_path.parent.exists()
+    assert config.selected_checkpoint_path.parent.exists()
     assert config.lora_model_path.parent.exists()
 
 
