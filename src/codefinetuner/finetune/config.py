@@ -33,7 +33,7 @@ class Config:
         "q_proj", "v_proj", "k_proj", "o_proj",
         "gate_proj", "down_proj", "up_proj"
     ])
-    lora_save_strategy: str = "best"
+    
 
     # --- Trainer Hyperparameters ---
     trainer_resume_from_checkpoint: str | None = "last"
@@ -58,6 +58,9 @@ class Config:
     trainer_save_steps: int = 100
     trainer_logging_strategy: str = "steps"
 
+    # --- Checkpoint Selection ---
+    selected_checkpoint_strategy = "best"
+
     # --- Dataset ---
     dataset_shuffle_buffer_size: int = 50000
     dataset_shuffle_seed: int = 0
@@ -74,7 +77,7 @@ class Config:
     trainer_checkpoints_dir_path: Path = field(init=False)
     trainer_log_path: Path = field(init=False)
     trainer_plot_path: Path = field(init=False)
-    lora_adapter_path: Path = field(init=False)
+    selected_checkpoint_path: Path = field(init=False)
     lora_model_path: Path = field(init=False)
     trainer_model_merge_offload_folder_path: Path = field(init=False)
 
@@ -134,7 +137,7 @@ class Config:
         self.trainer_model_merge_offload_folder_path = self.finetune_outputs_dir_path / "trainer_model_merge_offload_folder"
         self.trainer_log_path = self.finetune_outputs_dir_path / "results" / "trainer_log.json" 
         self.trainer_plot_path = self.finetune_outputs_dir_path / "results" / "trainer_loss_plot.png"
-        self.lora_adapter_path = self.finetune_outputs_dir_path / "results" / "lora_adapter"
+        self.selected_checkpoint_path = self.finetune_outputs_dir_path / "results" / "selected_checkpoint"
         self.lora_model_path = self.finetune_outputs_dir_path / "results" / "lora_model"
         logger.debug(f"Resolved workspace path to: {self.workspace_path}")
     
@@ -145,7 +148,7 @@ class Config:
             self.trainer_model_merge_offload_folder_path,
             self.trainer_log_path, 
             self.trainer_plot_path,
-            self.lora_adapter_path,
+            self.selected_checkpoint_path,
             self.lora_model_path
         ]
         for path in paths:

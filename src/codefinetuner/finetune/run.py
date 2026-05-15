@@ -10,7 +10,7 @@ from transformers import AutoTokenizer
 
 from .config import Config
 from .model import load_and_configure_lora_model
-from .train import train_lora_model, save_log, save_lora, merge_lora_and_save, plot_loss
+from .train import train_lora_model, save_log, select_checkpoint_and_save, merge_lora_and_save, plot_loss
 
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ def run(config: Config) -> None:
 
     log_history = train_lora_model(config, lora_model, tokenizer, train_dataset, eval_dataset)
     save_log(config, log_history)
-    save_lora(config)
+    select_checkpoint_and_save(config)
     merge_lora_and_save(config, tokenizer)
     plot_loss(config)
 
@@ -131,6 +131,7 @@ def main() -> None:
     except Exception as e:
         logger.exception(f"Finetuning failed")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

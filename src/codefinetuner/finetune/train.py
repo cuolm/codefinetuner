@@ -119,93 +119,6 @@ def train_lora_model(
     return log_history
 
 
-def save_lora(config: Config) -> None:
-    if config.lora_save_strategy == "last":
-        all_checkpoint_paths = list(config.trainer_checkpoints_dir_path.glob("checkpoint-*"))
-        if not all_checkpoint_paths:
-            raise FileNotFoundError(f"No checkpoints found in {config.trainer_checkpoints_dir_path}")
-
-        # find the checkpoint with the highest step number
-        highest_step = -1
-        selected_checkpoint_path = None
-        for checkpoint_path in all_checkpoint_paths:
-            step = int(checkpoint_path.name.split("-")[-1])
-            if step > highest_step:
-                highest_step = step
-                selected_checkpoint_path = checkpoint_path
-
-        logger.info(f"lora_save_strategy='last': saving checkpoint {selected_checkpoint_path.name}")
-
-    elif config.lora_save_strategy == "best":
-        with config.trainer_log_path.open("r", encoding="utf-8") as f:
-            log = json.load(f)
-
-        if not log["eval"]["steps"]:
-            raise ValueError("No eval steps found in trainer log. Cannot determine best checkpoint.")
-
-        # find the step with the lowest eval loss
-        best_step = None
-        best_loss = float("inf")
-        for i in range(len(log["eval"]["steps"])):
-            loss = log["eval"]["loss"][i]
-            step = log["eval"]["steps"][i]
-            if loss < best_loss:
-                best_loss = loss
-                best_step = step
-
-        selected_checkpoint_path = config.trainer_checkpoints_dir_path / f"checkpoint-{best_step}"
-        if not selected_checkpoint_path.exists():
-            raise FileNotFoundError(f"Best checkpoint at step {best_step} (eval_loss={best_loss:.4f}) not found at {selected_checkpoint_path}.")
-        logger.info(f"lora_save_strategy='best': step={best_step}, eval_loss={best_loss:.4f}")
-
-    else:
-        raise ValueError(f"Invalid lora_save_strategy '{config.lora_save_strategy}'. Must be 'best' or 'last'.")
-
-    # atomic copy
-    temp_adapter_path = config.lora_adapter_path.with_suffix(".tmp")
-    shutil.copytree(selected_checkpoint_path, temp_adapter_path)
-
-    if config.lora_adapter_path.exists():
-        shutil.rmtree(config.lora_adapter_path)
-    temp_adapter_path.rename(config.lora_adapter_path)
-
-
-def merge_lora_and_save(config: Config, tokenizer: AutoTokenizer) -> None:
-    gc.collect()  # force garbage collection
-
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()  # wait for gpu
-        torch.cuda.empty_cache()  # clear gpu cache
-    
-    # ensure offload folder for merging exists before loading the model
-    config.trainer_model_merge_offload_folder_path.mkdir(parents=True, exist_ok=True)
-
-    # load fresh base model
-    base_model = AutoModelForCausalLM.from_pretrained(
-        pretrained_model_name_or_path=config.model_name,
-        dtype=config.model_dtype,
-        device_map="auto",
-        offload_folder=str(config.trainer_model_merge_offload_folder_path),  # offload model layers to disk during loading to prevent RAM (OOM) crashes 
-        low_cpu_mem_usage=True
-    )
-
-    lora_model = PeftModel.from_pretrained(
-        model=base_model, 
-        model_id=config.lora_adapter_path,
-        offload_folder=str(config.trainer_model_merge_offload_folder_path)
-    )
-
-    # merge lora adapter into base model and save it with the tokenizer of the model
-    merged_model= lora_model.merge_and_unload() 
-    merged_model = merged_model.to(config.model_dtype) 
-    merged_model.save_pretrained(config.lora_model_path)
-    tokenizer.save_pretrained(config.lora_model_path)
-
-    # clean up offload folder
-    if config.trainer_model_merge_offload_folder_path.exists():
-        shutil.rmtree(config.trainer_model_merge_offload_folder_path)
-
-
 def save_log(config: Config, log_history: List) -> None:
     history = {
         "train": {"steps": [], "loss": [], "learning_rate": [], "epoch": []},
@@ -229,6 +142,93 @@ def save_log(config: Config, log_history: List) -> None:
     log_path = config.trainer_log_path 
     with log_path.open("w", encoding="utf-8") as f:
         json.dump(history, f, indent=2)
+
+
+def select_checkpoint_and_save(config: Config) -> None:
+    if config.selected_checkpoint_strategy == "last":
+        all_checkpoint_paths = list(config.trainer_checkpoints_dir_path.glob("checkpoint-*"))
+        if not all_checkpoint_paths:
+            raise FileNotFoundError(f"No checkpoints found in {config.trainer_checkpoints_dir_path}")
+
+        # find the checkpoint with the highest step number
+        highest_step = -1
+        selected_checkpoint_path = None
+        for checkpoint_path in all_checkpoint_paths:
+            step = int(checkpoint_path.name.split("-")[-1])
+            if step > highest_step:
+                highest_step = step
+                selected_checkpoint_path = checkpoint_path
+
+        logger.info(f"selected_checkpoint_strategy='last': saving checkpoint {selected_checkpoint_path.name}")
+
+    elif config.selected_checkpoint_strategy == "best":
+        with config.trainer_log_path.open("r", encoding="utf-8") as f:
+            log = json.load(f)
+
+        if not log["eval"]["steps"]:
+            raise ValueError("No eval steps found in trainer log. Cannot determine best checkpoint.")
+
+        # find the step with the lowest eval loss
+        best_step = None
+        best_loss = float("inf")
+        for i in range(len(log["eval"]["steps"])):
+            loss = log["eval"]["loss"][i]
+            step = log["eval"]["steps"][i]
+            if loss < best_loss:
+                best_loss = loss
+                best_step = step
+
+        selected_checkpoint = config.trainer_checkpoints_dir_path / f"checkpoint-{best_step}"
+        if not selected_checkpoint.exists():
+            raise FileNotFoundError(f"Best checkpoint at step {best_step} (eval_loss={best_loss:.4f}) not found at {selected_checkpoint}.")
+        logger.info(f"selected_checkpoint_strategy='best': step={best_step}, eval_loss={best_loss:.4f}")
+
+    else:
+        raise ValueError(f"Invalid selected_checkpoint_strategy '{config.selected_checkpoint_strategy}'. Must be 'best' or 'last'.")
+
+    # atomic copy
+    temp_selected_checkpoint_path = config.selected_checkpoint_path.with_suffix(".tmp")
+    shutil.copytree(selected_checkpoint, temp_selected_checkpoint_path)
+
+    if config.selected_checkpoint_path.exists():
+        shutil.rmtree(config.selected_checkpoint_path)
+    temp_selected_checkpoint_path.rename(config.selected_checkpoint_path)
+
+
+def merge_lora_and_save(config: Config, tokenizer: AutoTokenizer) -> None:
+    gc.collect()  # force garbage collection
+
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()  # wait for gpu
+        torch.cuda.empty_cache()  # clear gpu cache
+    
+    # ensure offload folder for merging exists before loading the model
+    config.trainer_model_merge_offload_folder_path.mkdir(parents=True, exist_ok=True)
+
+    # load fresh base model
+    base_model = AutoModelForCausalLM.from_pretrained(
+        pretrained_model_name_or_path=config.model_name,
+        dtype=config.model_dtype,
+        device_map="auto",
+        offload_folder=str(config.trainer_model_merge_offload_folder_path),  # offload model layers to disk during loading to prevent RAM (OOM) crashes 
+        low_cpu_mem_usage=True
+    )
+
+    lora_model = PeftModel.from_pretrained(
+        model=base_model, 
+        model_id=config.selected_checkpoint_path,
+        offload_folder=str(config.trainer_model_merge_offload_folder_path)
+    )
+
+    # merge lora adapter into base model and save it with the tokenizer of the model
+    merged_model= lora_model.merge_and_unload() 
+    merged_model = merged_model.to(config.model_dtype) 
+    merged_model.save_pretrained(config.lora_model_path)
+    tokenizer.save_pretrained(config.lora_model_path)
+
+    # clean up offload folder
+    if config.trainer_model_merge_offload_folder_path.exists():
+        shutil.rmtree(config.trainer_model_merge_offload_folder_path)
 
 
 def plot_loss(config: Config) -> None:
