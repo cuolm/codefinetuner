@@ -32,6 +32,7 @@ class Config:
     benchmark_shuffle_seed: int = 42 
 
     # --- Generation ---
+    generation_checkpoint: str = "pipeline"  # "pipeline" -> selected checkpoint from finetune stage, "checkpoint-name" -> specific checkpoint
     generation_batch_size: int = 10
     generation_max_new_tokens: int = 128 
     generation_do_sample: bool = False  # note: if set to False temperature and top_p have no effect
@@ -64,7 +65,6 @@ class Config:
     edit_similarity: str = "edit_similarity"
 
     # --- Execution Controls ---
-    trainer_checkpoint: str = "last"  # "last"->use last checkpoint in  trainer_checkpoints_dir_path
     plot_only: bool = False  # "skips" generate and evaluate, analyze only
     benchmark_use_existing_dataset: bool = False
 
@@ -75,7 +75,7 @@ class Config:
 
     # --- Paths ---
     workspace_path: Path | None = None 
-    trainer_checkpoints_dir_path: Path = field(init=False)
+    finetune_outputs_path: Path = field(init=False)
     test_dataset_path: Path = field(init=False)  
     evaluate_outputs_dir_path: Path = field(init=False)
     benchmark_dataset_path: Path = field(init=False)
@@ -142,7 +142,7 @@ class Config:
     def _setup_paths(self) -> None:
         if self.workspace_path is None:
             self.workspace_path = Path.cwd()
-        self.trainer_checkpoints_dir_path = self.workspace_path / "outputs" / "finetune" / "checkpoints"
+        self.finetune_outputs_path = self.workspace_path / "outputs" / "finetune"
         self.test_dataset_path = self.workspace_path / "outputs" / "preprocess" / "results" / "datasets" / "test_dataset.jsonl"
         self.evaluate_outputs_dir_path = self.workspace_path / "outputs" / "evaluate"
         self.benchmark_dataset_path = self.evaluate_outputs_dir_path / "datasets" / "benchmark_dataset.jsonl"

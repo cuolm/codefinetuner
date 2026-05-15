@@ -49,7 +49,7 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `lora_dropout` | float | `0.1` | Dropout probability for LoRA layers to prevent overfitting on specific code snippets. |
 | `lora_bias` | str | `"none"` | Specifies if bias parameters are trained (`"none"`, `"all"`, `"lora_only"`). |
 | `lora_target_modules` | list | `["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "down_proj", "up_proj"]` | Model layers targeted for adaptation. Increasing the list improves performance but consumes more VRAM. |
-| `lora_save_strategy` | str | "best" |Which checkpoint to save as the final LoRA adapter. "best" selects the checkpoint with the lowest eval loss, "last" saves the final checkpoint regardless of eval performance. |
+| `selected_checkpoint_strategy` | str |`"best"` |Which checkpoint to select as the pipeline output after training. `"best"` selects the checkpoint with the lowest eval loss, `"last"` selects the final checkpoint regardless of eval performance. The selected checkpoint is saved to selected_checkpoint_path. |
 | `trainer_resume_from_checkpoint` | str/null| `null` | Path to a specific checkpoint or `"last"` to continue a previous run. |
 | `trainer_clear_checkpoint_dir` | bool | `false` | If `true`, deletes the output folder before starting a new training run. |
 | `trainer_num_train_epochs` | int | `1` | Total passes through the training dataset. |
@@ -81,6 +81,7 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `benchmark_shuffle_buffer_size` | int | `10000000` | Size of the shuffle buffer used to shuffle benchmark examples. |
 | `benchmark_shuffle_seed` | int | `42` | Random seed ensuring that dataset shuffling is deterministic and reproducible. |
 | `benchmark_use_existing_dataset` | bool | `false` | If `true`, the pipeline reuses a previously generated benchmark dataset file instead of creating a new one. |
+| `generation_checkpoint`| str | `"pipeline"`| The checkpoint used for generation. `"pipeline"` loads the selected checkpoint from the finetune stage. Any other value is interpreted as a specific checkpoint name (e.g. `"checkpoint-250"`) and loaded directly from the finetune checkpoint directory. |
 | `generation_batch_size` | int | `10` | The number of examples processed in parallel. Increasing this value maximizes GPU hardware utilization and significantly reduces total evaluation time.|
 | `generation_max_new_tokens` | int | `128` | Upper limit on the number of tokens the models are permitted to generate for each code completion. |
 | `generation_do_sample` | bool | `false` | Enables probabilistic sampling. If `false`, the model uses greedy decoding (picking only the top token) and `generation_temperature` and `generation_top_p` are ignored.|
@@ -96,7 +97,6 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `sentencebleu_ngram_weight_3` | float | `0.25` | Medium phrase accuracy. Weight of 3-token chains (3-grams) in the final BLEU score calculation. |
 | `sentencebleu_ngram_weight_4` | float | `0.25` | Long phrase accuracy. Weight of 4-token blocks (4-grams) in the final BLEU score calculation. |
 | `line_match_number_of_lines` | int | `2` | Number of identical consecutive lines required between prediction and ground truth to count as a line match. |
-| `trainer_checkpoint` | str | `"last"` | Specifies the checkpoint folder to load. Use `last` for the latest or provide a specific directory name. |
 | `plot_only` | bool | `false` | If `true`, skips the heavy inference and scoring steps to only generate charts from existing results. |
 
 ## Convert Parameters (Optional)

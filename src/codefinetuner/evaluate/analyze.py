@@ -158,7 +158,7 @@ def save_all_metric_stats(config: Config, all_metric_stats_np: list[dict]) -> No
         all_metric_stats.append(stat)
 
     report_content = {
-        "checkpoint": config.trainer_checkpoint,
+        "checkpoint": config.generation_checkpoint,
         "evaluation_date": datetime.now().isoformat(timespec="seconds"),
         "all_metric_stats": all_metric_stats 
     }

@@ -137,6 +137,7 @@ def _clear_hardware_cache(config: Config) -> None:
 
 
 def generate_and_save(config: Config, checkpoint_path: Path):
+    
     lora_model = _load_lora_model(config, checkpoint_path)
     tokenizer = _load_tokenizer(config)
     fim_prefix_token_id = tokenizer.convert_tokens_to_ids(config.fim_prefix_token)

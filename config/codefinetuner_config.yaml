@@ -68,6 +68,7 @@ evaluate:
   benchmark_min_fim_middle_tokens: 0
   benchmark_shuffle_buffer_size: 10000000
   benchmark_shuffle_seed: 42
+  generation_checkpoint: "pipeline"  # "pipeline" -> selected checkpoint from finetune stage, "checkpoint-name" -> specific checkpoint
   generation_batch_size: 100 
   generation_max_new_tokens: 128
   generation_do_sample: false
@@ -83,7 +84,6 @@ evaluate:
   sentencebleu_ngram_weight_3: 0.25
   sentencebleu_ngram_weight_4: 0.25
   line_match_number_of_lines: 2
-  trainer_checkpoint: "pipeline"  # "pipeline" -> checkpont saved in finetune stage, "checkpoint-name" ->
   plot_only: false
   benchmark_use_existing_dataset: false
 

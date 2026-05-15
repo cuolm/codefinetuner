@@ -73,14 +73,6 @@ def _silence_noisy_third_party_loggers() -> None:
     # add more as needed
 
 
-def _ensure_checkpoints(config: Config) -> None:
-    checkpoints_dir = config.trainer_checkpoints_dir_path
-    if not checkpoints_dir.exists():
-        raise RuntimeError("Checkpoint directory not found.")
-    if not list(checkpoints_dir.iterdir()):
-        raise RuntimeError("No checkpoints in directory.")
-
-
 def run(config: Config) -> None:
     if not config.benchmark_use_existing_dataset or not config.benchmark_dataset_path.exists():
         dataset_len = create_benchmark_dataset(config)
@@ -89,11 +81,14 @@ def run(config: Config) -> None:
         logger.info(f"Proceeding with existing file '{config.benchmark_dataset_path}'...")
     
     if not config.plot_only: 
-        _ensure_checkpoints(config)
-        if config.trainer_checkpoint == "last":
-            checkpoint_path = get_last_checkpoint(config.trainer_checkpoints_dir_path)
+        if config.generation_checkpoint == "pipeline":
+            checkpoint_path = config.finetune_outputs_path / "results/selected_checkpoint"
         else:
-            checkpoint_path = config.trainer_checkpoints_dir_path / config.trainer_checkpoint 
+            checkpoint_path = config.finetune_outputs_path / "checkpoints" / config.generation_checkpoint
+
+        if not checkpoint_path.exists():
+            raise RuntimeError("Checkpoint path not found: {checkpoint_path}") 
+
         generate_and_save(config, checkpoint_path)
         evaluate_and_save(config)
 
