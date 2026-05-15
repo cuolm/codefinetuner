@@ -8,6 +8,7 @@ from transformers import AutoTokenizer
 from .config import Config
 from .extract import get_code_blocks_from_auto_split, get_code_blocks_from_manual_split
 from .process import create_fim_examples, estimate_bytes_per_token_ratio, tokenize_and_save_fim_examples
+from .analyze import analyze_and_plot_datasets
 
 
 logger = logging.getLogger(__name__)
@@ -113,6 +114,11 @@ def run(config: Config) -> None:
     tokenize_and_save_fim_examples(config, config.train_dataset_path, train_fim_examples_iter, tokenizer)
     tokenize_and_save_fim_examples(config, config.eval_dataset_path, eval_fim_examples_iter, tokenizer)
     tokenize_and_save_fim_examples(config, config.test_dataset_path, test_fim_examples_iter, tokenizer)
+
+    fim_middle_token_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
+    eos_token_id = tokenizer.convert_tokens_to_ids(config.eos_token)
+
+    analyze_and_plot_datasets(config, fim_middle_token_id, eos_token_id)
 
     logger.info("Saved train, eval, test datasets to disk")  
 

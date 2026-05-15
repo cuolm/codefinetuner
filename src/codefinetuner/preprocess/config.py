@@ -109,6 +109,7 @@ class Config:
                 raise FileNotFoundError("Missing internal tree_sitter_definitions.json") 
 
         self.preprocess_outputs_dir_path = self.workspace_path / "outputs" / "preprocess"
+        self.preprocess_results_path = self.preprocess_outputs_dir_path / "results"
         self.train_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "train_dataset.jsonl"
         self.eval_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "eval_dataset.jsonl"
         self.test_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "test_dataset.jsonl"
@@ -117,6 +118,7 @@ class Config:
     def _ensure_output_paths_exist(self) -> None:
         paths = [
             self.preprocess_outputs_dir_path,
+            self.preprocess_results_path,
             self.train_dataset_path,
             self.eval_dataset_path,
             self.test_dataset_path
