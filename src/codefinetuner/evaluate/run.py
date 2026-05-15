@@ -71,6 +71,18 @@ def _silence_noisy_third_party_loggers() -> None:
     logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
     logging.getLogger("nltk").setLevel(logging.WARNING)
     # add more as needed
+    
+
+def _get_checkpoint_path(config: Config) -> Path:
+    if config.generation_checkpoint == "pipeline":
+        checkpoint_path = config.finetune_outputs_path / "results" / "selected_checkpoint"
+    else:
+        checkpoint_path = config.finetune_outputs_path / "checkpoints" / config.generation_checkpoint
+
+    if not checkpoint_path.exists():
+        raise RuntimeError(f"Checkpoint path not found: {checkpoint_path}")
+
+    return checkpoint_path 
 
 
 def run(config: Config) -> None:
@@ -81,14 +93,7 @@ def run(config: Config) -> None:
         logger.info(f"Proceeding with existing file '{config.benchmark_dataset_path}'...")
     
     if not config.plot_only: 
-        if config.generation_checkpoint == "pipeline":
-            checkpoint_path = config.finetune_outputs_path / "results/selected_checkpoint"
-        else:
-            checkpoint_path = config.finetune_outputs_path / "checkpoints" / config.generation_checkpoint
-
-        if not checkpoint_path.exists():
-            raise RuntimeError("Checkpoint path not found: {checkpoint_path}") 
-
+        checkpoint_path = _get_checkpoint_path(config)
         generate_and_save(config, checkpoint_path)
         evaluate_and_save(config)
 

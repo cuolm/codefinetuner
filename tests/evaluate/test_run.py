@@ -6,7 +6,7 @@ tests_path = pathlib.Path(__file__).parent.parent
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
  
 from codefinetuner.evaluate.config import Config
-from codefinetuner.evaluate.run import run
+from codefinetuner.evaluate.run import _get_checkpoint_path, run
  
  
 # --- Fixtures ---
@@ -15,6 +15,35 @@ from codefinetuner.evaluate.run import run
 def config() -> Config:
     """Load an evaluate Config from the test YAML."""
     return Config.load_from_yaml(test_config_path)
+
+# --- _get_checkpoint_path ---
+
+def test_get_checkpoint_path_pipeline(config, tmp_path):
+    config.generation_checkpoint = "pipeline"
+    config.finetune_outputs_path = tmp_path
+    expected_path = tmp_path / "results" / "selected_checkpoint"
+    expected_path.mkdir(parents=True) 
+    checkpoint_path = _get_checkpoint_path(config)
+    assert checkpoint_path == expected_path
+
+
+def test_get_checkpoint_path_specific_checkpoint(config, tmp_path):
+    config.generation_checkpoint = "checkpoint-100"
+    config.finetune_outputs_path = tmp_path
+    expected_path = tmp_path / "checkpoints" / "checkpoint-100"
+    expected_path.mkdir(parents=True)
+    checkpoint_path = _get_checkpoint_path(config)
+    assert checkpoint_path == expected_path
+
+
+def test_get_checkpoint_path_raises_error_if_missing(config, tmp_path):
+    config.generation_checkpoint = "missing-checkpoint"
+    config.finetune_outputs_path = tmp_path
+    
+    # Missing checkpint dir
+    
+    with pytest.raises(RuntimeError, match="Checkpoint path not found"):
+        _get_checkpoint_path(config)
  
 
 # --- run ---
@@ -22,6 +51,8 @@ def config() -> Config:
 def test_run_calls_all_internal_functions(config, mocker):
     create_benchmark_dataset_mock = mocker.patch("codefinetuner.evaluate.run.create_benchmark_dataset", return_value=10)
     mocker.patch("pathlib.Path.exists", return_value=True)
+    checkpoint_path = pathlib.Path("tmp_finetune_outputs_path/checkpoints/checkpoint-test")
+    mocker.patch("codefinetuner.evaluate.run._get_checkpoint_path", return_value=checkpoint_path)
     generate_and_save_mock = mocker.patch("codefinetuner.evaluate.run.generate_and_save")
     evaluate_and_save_mock = mocker.patch("codefinetuner.evaluate.run.evaluate_and_save")
     analyze_metric_mock = mocker.patch(
