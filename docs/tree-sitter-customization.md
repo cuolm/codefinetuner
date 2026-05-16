@@ -1,9 +1,8 @@
 # Tree-sitter Customization
 
 ## Add New Language Block Definitions
-1. Navigate to the [tree-sitter-language-pack](https://github.com/Goldziher/tree-sitter-language-pack?tab=readme-ov-file#available-languages) and find your language's repository link.
-2. Inside the language repository, search the `grammar.js` file for the required syntax node names.
-3. Create a new file, e.g., called `tree_sitter_definitions.json`.
+1. To find the relevant node names for the language you want to add, run the helper script [`print_treesitter_tree.py`](../scripts/print_treesitter_tree.py). on a sample source file to output its syntax tree and node types. Alternatively, use the web-based [Syntax Tree Playground](https://tree-sitter.github.io/tree-sitter/7-playground.html) to inspect the node structure interactively.
+2. Create a new file, e.g., called `tree_sitter_definitions.json`.
 Add a new entry for your language, defining the following nodes:
     * `block_types`: The outer syntax nodes (e.g., functions, classes). These are the structural elements from which we create FIM examples.
     * `subblock_types`: The inner syntax nodes (e.g., statements, expressions). These are masked to form the predicted middle portion of the FIM example.
@@ -35,7 +34,7 @@ Add a new entry for your language, defining the following nodes:
         ]
       }
     ```
-4. Set the parameter in your config file `codefinetuner_config.yaml` to the path of that file:
+3. Set the parameter in your config file `codefinetuner_config.yaml` to the path of that file:
     ```yaml
     tree_sitter_definitions_path: "path/to/your/tree_sitter_definitions.json"
     ```
