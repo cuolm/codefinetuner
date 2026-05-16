@@ -17,8 +17,10 @@ from codefinetuner.preprocess.process import (
     _filter_subblocks,
     _generate_fim_examples_from_code_block,
     create_fim_examples,
+    _filter_tokenized_total_length,
+    _filter_tokenized_middle_length,
     _save_tokenized_batch_as_jsonl,
-    tokenize_and_save_fim_examples
+    tokenize_filter_and_save 
 )
 
 # --- Fixtures ---
@@ -151,6 +153,102 @@ def test_create_fim_examples(config, test_code_block):
     assert hasattr(examples_iter, "__next__")
     examples = list(examples_iter)
     assert len(examples) > 0
+
+
+# --- _filter_tokenized_total_length ---
+
+def test_filter_tokenized_total_length_keeps_valid(config):
+    config.max_token_sequence_length = 5
+    batch = {
+        "input_ids": [[1, 2, 3], [1, 2, 3, 4, 5]],
+        "attention_mask": [[1, 1, 1], [1, 1, 1, 1, 1]],
+        "labels": [[1, 2, 3], [1, 2, 3, 4, 5]]
+    }
+    
+    result = _filter_tokenized_total_length(config, batch)
+    
+    assert len(result["input_ids"]) == 2
+    assert result["input_ids"] == [[1, 2, 3], [1, 2, 3, 4, 5]]
+    assert result["labels"] == [[1, 2, 3], [1, 2, 3, 4, 5]]
+
+
+def test_filter_tokenized_total_length_removes_exceeding(config):
+    config.max_token_sequence_length = 3
+    batch = {
+        "input_ids": [[1, 2], [1, 2, 3, 4]],
+        "attention_mask": [[1, 1], [1, 1, 1, 1]],
+        "labels": [[1, 2], [1, 2, 3, 4]]
+    }
+    
+    result = _filter_tokenized_total_length(config, batch)
+    
+    assert len(result["input_ids"]) == 1
+    assert result["input_ids"] == [[1, 2]]
+    assert result["attention_mask"] == [[1, 1]]
+    assert result["labels"] == [[1, 2]]
+
+
+# --- _filter_tokenized_middle_length ---
+
+def test_filter_tokenized_middle_length_keeps_within_bounds(config, tokenizer):
+    config.min_middle_tokens_length = 2
+    config.max_middle_tokens_length = 4
+    mid_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
+    eos_id = tokenizer.convert_tokens_to_ids(config.eos_token)
+    
+    batch = {
+        "input_ids": [[99, mid_id, 10, 11, eos_id]],
+        "attention_mask": [[1, 1, 1, 1, 1]],
+        "labels": [[99, mid_id, 10, 11, eos_id]]
+    }
+    
+    result = _filter_tokenized_middle_length(config, tokenizer, batch)
+    
+    assert len(result["input_ids"]) == 1
+    assert result["labels"] == [[99, mid_id, 10, 11, eos_id]]
+
+
+def test_filter_tokenized_middle_length_removes_out_of_bounds(config, tokenizer):
+    config.min_middle_tokens_length = 2
+    config.max_middle_tokens_length = 3
+    mid_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
+    eos_id = tokenizer.convert_tokens_to_ids(config.eos_token)
+    
+    batch = {
+        "input_ids": [
+            [99, mid_id, 10, eos_id],
+            [99, mid_id, 10, 11, 12, 13, eos_id]
+        ],
+        "attention_mask": [
+            [1, 1, 1, 1], 
+            [1, 1, 1, 1, 1, 1, 1]
+        ],
+        "labels": [
+            [99, mid_id, 10, eos_id],
+            [99, mid_id, 10, 11, 12, 13, eos_id]
+        ]
+    }
+    
+    result = _filter_tokenized_middle_length(config, tokenizer, batch)
+    
+    assert len(result["input_ids"]) == 0
+    assert len(result["labels"]) == 0
+
+
+def test_filter_tokenized_middle_length_drops_missing_token(config, tokenizer, caplog):
+    config.min_middle_tokens_length = 1
+    config.max_middle_tokens_length = 10
+    
+    batch = {
+        "input_ids": [[1, 2, 3, 4]],
+        "attention_mask": [[1, 1, 1, 1]],
+        "labels": [[1, 2, 3, 4]]
+    }
+    
+    result = _filter_tokenized_middle_length(config, tokenizer, batch)
+    
+    assert len(result["input_ids"]) == 0
+    assert len(result["labels"]) == 0
     
 
 # --- _save_tokenized_batch_as_jsonl ---
@@ -199,14 +297,14 @@ def test_save_tokenized_batch_appends_on_second_call(tmp_path):
     assert second_batch_example["input_ids"] == [4, 5, 6]
 
 
-# --- tokenize_and_save_fim_examples ---
+# --- tokenize_filter_and_save ---
 
-def test_tokenize_and_save_fim_examples(tmp_path, config, tokenizer):
+def test_tokenize_filter_and_save(tmp_path, config, tokenizer):
     tmp_file_path = tmp_path / "tmp_file.jsonl"
     example = b'<|fim_prefix|>\nint calculate_sum(int n) {\n    <|fim_suffix|>}\n    return n + calculate_sum(n - 1);\n}\n<|fim_middle|> if (n <= 0) {\n        return 0;\n    <|endoftext|>'
     example_iter = iter([example])
 
-    tokenize_and_save_fim_examples(config, tmp_file_path, example_iter, tokenizer)
+    tokenize_filter_and_save(config, tmp_file_path, example_iter, tokenizer)
 
     assert tmp_file_path.exists()
     lines = tmp_file_path.read_text(encoding="utf-8").strip().splitlines()

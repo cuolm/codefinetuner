@@ -133,12 +133,13 @@ def create_fim_examples(config: Config, code_blocks_iter: Iterator[Tuple[bytes, 
             yield fim_example
 
 
-def _filter_overlong_tokenized_examples(tokenized_batch: Mapping[str, List[List[int]]], max_length: int) -> Mapping[str, List[List[int]]]:
+def _filter_tokenized_total_length(config: Config, tokenized_batch: Mapping[str, List[List[int]]]) -> Mapping[str, List[List[int]]]:
     """
     Remove examples whose actual token count exceeds max_length.
     Returns filtered batch.
     """
     input_ids = tokenized_batch["input_ids"]
+    max_length = config.max_token_sequence_length
     
     keep_indices = []
     for idx, token_sequence in enumerate(input_ids):
@@ -154,6 +155,36 @@ def _filter_overlong_tokenized_examples(tokenized_batch: Mapping[str, List[List[
     
     return filtered_batch 
 
+
+def _filter_tokenized_middle_length(config: Config, tokenizer: AutoTokenizer, tokenized_batch: Mapping[str, List[List[int]]]) -> Mapping[str, List[List[int]]]:
+    """
+    Removes examples whose actual token middle cont is smaller or larger than the defined range
+    Returns filtered batch
+    """
+    input_ids = tokenized_batch["input_ids"]
+    fim_middle_token_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
+
+    keep_indices = []
+    for ex_idx, ex_token_sequence in enumerate(input_ids):
+        try:
+            fim_middle_token_idx = ex_token_sequence.index(fim_middle_token_id)
+            middle_length = len(ex_token_sequence) - fim_middle_token_idx - 2  # -2 accounts for the fim_middle token and eos token 
+            
+            if config.min_middle_tokens_length <= middle_length <= config.max_middle_tokens_length:
+                keep_indices.append(ex_idx)
+        except ValueError:
+            logger.warning(f"Failed to filter example at index {ex_idx}: FIM middle token ID {fim_middle_token_id} not found in sequence.")
+            continue
+
+    filtered_batch = {}
+    for key, values in tokenized_batch.items():
+        filtered_values = []
+        for idx in keep_indices:
+            filtered_values.append(values[idx])
+        filtered_batch[key] = filtered_values
+    
+    return filtered_batch 
+        
 
 def _save_tokenized_batch_as_jsonl(file_path: Path, batch: Mapping[str, List[List[int]]]) -> None:
     with open(file_path, 'a', encoding='utf-8') as f:
@@ -171,7 +202,7 @@ def _save_tokenized_batch_as_jsonl(file_path: Path, batch: Mapping[str, List[Lis
             f.write(json.dumps(example, ensure_ascii=False) + '\n')  # ensre utf8 encoding
 
 
-def tokenize_and_save_fim_examples(config: Config, file_path: Path, fim_examples_iter: Iterator[bytes], tokenizer: AutoTokenizer) -> None: 
+def tokenize_filter_and_save(config: Config, file_path: Path, fim_examples_iter: Iterator[bytes], tokenizer: AutoTokenizer) -> None: 
     examples_counter = 0
     batch = []
     for fim_example in fim_examples_iter:
@@ -184,7 +215,8 @@ def tokenize_and_save_fim_examples(config: Config, file_path: Path, fim_examples
                 return_attention_mask=True
             )
             tokenized_batch["labels"] = tokenized_batch["input_ids"]
-            filtered_tokenized_batch = _filter_overlong_tokenized_examples(tokenized_batch, config.max_token_sequence_length)
+            filtered_tokenized_batch = _filter_tokenized_total_length(config, tokenized_batch)
+            filtered_tokenized_batch = _filter_tokenized_middle_length(config, tokenizer, tokenized_batch)
             if filtered_tokenized_batch["input_ids"]:  # dont save if no examples left after filtering
                 _save_tokenized_batch_as_jsonl(file_path, filtered_tokenized_batch)
             examples_counter += len(filtered_tokenized_batch["input_ids"])
@@ -199,7 +231,8 @@ def tokenize_and_save_fim_examples(config: Config, file_path: Path, fim_examples
             return_attention_mask=True
         )
         tokenized_batch["labels"] = tokenized_batch["input_ids"]
-        filtered_tokenized_batch = _filter_overlong_tokenized_examples(tokenized_batch, config.max_token_sequence_length)
+        filtered_tokenized_batch = _filter_tokenized_total_length(config, tokenized_batch)
+        filtered_tokenized_batch = _filter_tokenized_middle_length(config, tokenizer, tokenized_batch)
         if filtered_tokenized_batch["input_ids"]:  # dont save if no examples left after filtering
             _save_tokenized_batch_as_jsonl(file_path, filtered_tokenized_batch)
         examples_counter += len(filtered_tokenized_batch["input_ids"])

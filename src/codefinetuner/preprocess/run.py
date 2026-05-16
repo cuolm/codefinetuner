@@ -7,7 +7,7 @@ from transformers import AutoTokenizer
 
 from .config import Config
 from .extract import get_code_blocks_from_auto_split, get_code_blocks_from_manual_split
-from .process import create_fim_examples, estimate_bytes_per_token_ratio, tokenize_and_save_fim_examples
+from .process import create_fim_examples, estimate_bytes_per_token_ratio, tokenize_filter_and_save 
 from .analyze import analyze_and_plot_datasets
 
 
@@ -111,9 +111,9 @@ def run(config: Config) -> None:
     eval_fim_examples_iter = create_fim_examples(config, eval_code_blocks_iter, bytes_per_token_ratio)
     test_fim_examples_iter = create_fim_examples(config, test_code_blocks_iter, bytes_per_token_ratio)
     
-    tokenize_and_save_fim_examples(config, config.train_dataset_path, train_fim_examples_iter, tokenizer)
-    tokenize_and_save_fim_examples(config, config.eval_dataset_path, eval_fim_examples_iter, tokenizer)
-    tokenize_and_save_fim_examples(config, config.test_dataset_path, test_fim_examples_iter, tokenizer)
+    tokenize_filter_and_save(config, config.train_dataset_path, train_fim_examples_iter, tokenizer)
+    tokenize_filter_and_save(config, config.eval_dataset_path, eval_fim_examples_iter, tokenizer)
+    tokenize_filter_and_save(config, config.test_dataset_path, test_fim_examples_iter, tokenizer)
 
     fim_middle_token_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
     eos_token_id = tokenizer.convert_tokens_to_ids(config.eos_token)
