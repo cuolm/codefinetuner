@@ -216,7 +216,7 @@ def tokenize_filter_and_save(config: Config, file_path: Path, fim_examples_iter:
             )
             tokenized_batch["labels"] = tokenized_batch["input_ids"]
             filtered_tokenized_batch = _filter_tokenized_total_length(config, tokenized_batch)
-            filtered_tokenized_batch = _filter_tokenized_middle_length(config, tokenizer, tokenized_batch)
+            filtered_tokenized_batch = _filter_tokenized_middle_length(config, tokenizer, filtered_tokenized_batch)
             if filtered_tokenized_batch["input_ids"]:  # dont save if no examples left after filtering
                 _save_tokenized_batch_as_jsonl(file_path, filtered_tokenized_batch)
             examples_counter += len(filtered_tokenized_batch["input_ids"])
@@ -232,7 +232,7 @@ def tokenize_filter_and_save(config: Config, file_path: Path, fim_examples_iter:
         )
         tokenized_batch["labels"] = tokenized_batch["input_ids"]
         filtered_tokenized_batch = _filter_tokenized_total_length(config, tokenized_batch)
-        filtered_tokenized_batch = _filter_tokenized_middle_length(config, tokenizer, tokenized_batch)
+        filtered_tokenized_batch = _filter_tokenized_middle_length(config, tokenizer, filtered_tokenized_batch)
         if filtered_tokenized_batch["input_ids"]:  # dont save if no examples left after filtering
             _save_tokenized_batch_as_jsonl(file_path, filtered_tokenized_batch)
         examples_counter += len(filtered_tokenized_batch["input_ids"])
