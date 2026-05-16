@@ -77,7 +77,6 @@ This document defines all mandatory and optional parameters in the YAML config f
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `benchmark_sample_size` | int | `4` | Total number of FIM examples extracted to form the evaluation suite. |
-| `benchmark_min_fim_middle_tokens` | int | `0` | Examples with fewer tokens than this in the middle section are ignored for benchmark dataset creation. |
 | `benchmark_shuffle_buffer_size` | int | `10000000` | Size of the shuffle buffer used to shuffle benchmark examples. |
 | `benchmark_shuffle_seed` | int | `42` | Random seed ensuring that dataset shuffling is deterministic and reproducible. |
 | `benchmark_use_existing_dataset` | bool | `false` | If `true`, the pipeline reuses a previously generated benchmark dataset file instead of creating a new one. |

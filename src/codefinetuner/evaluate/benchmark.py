@@ -81,10 +81,6 @@ def create_benchmark_dataset(config: Config) -> int:
             logger.warning(f"Could not extract fim parts from example {idx}, skipping") 
             continue
 
-        if (len(fim_parts["middle_token_ids"]) < config.benchmark_min_fim_middle_tokens   
-            or len(fim_parts["prefix_token_ids"]) == 0):  # skip if no prefix
-            continue
-
         benchmark_examples.append(fim_parts)
         added_examples_count += 1
 

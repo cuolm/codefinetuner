@@ -83,7 +83,6 @@ def test_create_benchmark_dataset(config, tmp_path):
     config.benchmark_dataset_path = tmp_path / "test_benchmark_dataset.jsonl"
     number_of_examples = 4
     config.benchmark_sample_size = number_of_examples 
-    config.benchmark_min_fim_middle_tokens = 0
 
     return_count = create_benchmark_dataset(config)
 

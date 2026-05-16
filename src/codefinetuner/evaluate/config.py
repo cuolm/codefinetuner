@@ -27,7 +27,6 @@ class Config:
 
     # --- Benchmark ---
     benchmark_sample_size: int = 4
-    benchmark_min_fim_middle_tokens: int = 0 
     benchmark_shuffle_buffer_size: int = 10000000
     benchmark_shuffle_seed: int = 42 
 
