@@ -1,4 +1,5 @@
 import ctypes
+import json
 import logging
 from pathlib import Path
 from typing import Iterator, Tuple
@@ -58,6 +59,20 @@ def auto_create_split_paths(config: Config) -> Tuple[list[Path], list[Path], lis
     return train_file_paths, eval_file_paths, test_file_paths
 
 
+def _log_split_paths(config: Config, train_file_paths: list[Path], eval_file_paths: list[Path], test_file_paths: list[Path]) -> None:
+    split_log = {
+        "train": [str(path) for path in train_file_paths],
+        "eval": [str(path) for path in eval_file_paths],
+        "test": [str(path) for path in test_file_paths],
+    }
+
+    output_path = config.split_log_path
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with output_path.open("w", encoding="utf-8") as file:
+        json.dump(split_log, file, indent=4)
+
+
 def _extract_code_blocks_rec(config: Config, node: ts.Node, source_code_utf8: bytes, max_depth: int) -> list[Tuple[bytes, ts.Node]]:
     """
     Recursively extract code blocks (e.g. functions) that are used for FIM example generation later 
@@ -115,6 +130,9 @@ def get_code_blocks_from_auto_split(config: Config) -> Tuple[Iterator[Tuple[byte
     code blocks such as functions from each split.
     """
     train_file_paths, eval_file_paths, test_file_paths = auto_create_split_paths(config)
+
+    _log_split_paths(config, train_file_paths, eval_file_paths, test_file_paths)
+    
     train_code_blocks_iter = get_code_blocks_from_paths(config, train_file_paths)
     eval_code_blocks_iter = get_code_blocks_from_paths(config, eval_file_paths)  
     test_code_blocks_iter =  get_code_blocks_from_paths(config, test_file_paths)
@@ -157,6 +175,8 @@ def get_code_blocks_from_manual_split(config: Config) -> Tuple[Iterator[Tuple[by
     train_file_paths = _get_filtered_paths(config, config.raw_data_path / "train")
     eval_file_paths  = _get_filtered_paths(config, config.raw_data_path / "eval")
     test_file_paths  = _get_filtered_paths(config, config.raw_data_path / "test")
+
+    _log_split_paths(config, train_file_paths, eval_file_paths, test_file_paths)
 
     train_code_blocks_iter = get_code_blocks_from_paths(config, train_file_paths)
     eval_code_blocks_iter = get_code_blocks_from_paths(config, eval_file_paths) 

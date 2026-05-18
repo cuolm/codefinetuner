@@ -49,6 +49,7 @@ class Config:
     train_dataset_path: Path = field(init=False)
     eval_dataset_path: Path = field(init=False)
     test_dataset_path: Path = field(init=False)
+    splot_log_path: Path = field(init=False)
     tree_sitter_parser_path: Path | None = None
     tree_sitter_definitions_path: Path | None = None
 
@@ -113,6 +114,7 @@ class Config:
         self.train_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "train_dataset.jsonl"
         self.eval_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "eval_dataset.jsonl"
         self.test_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "test_dataset.jsonl"
+        self.split_log_path = self.preprocess_outputs_dir_path / "results" / "split_log.jsonl"
         logger.debug(f"Resolved workspace path to: {self.workspace_path}")
 
     def _ensure_output_paths_exist(self) -> None:
@@ -121,7 +123,8 @@ class Config:
             self.preprocess_results_path,
             self.train_dataset_path,
             self.eval_dataset_path,
-            self.test_dataset_path
+            self.test_dataset_path,
+            self.split_log_path
         ]
 
         for path in paths:

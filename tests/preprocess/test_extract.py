@@ -1,5 +1,7 @@
 import pathlib
+import json
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -10,6 +12,7 @@ test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 from codefinetuner.preprocess.config import Config
 from codefinetuner.preprocess.extract import (
     auto_create_split_paths,
+    _log_split_paths,
     _extract_code_blocks_rec,
     get_code_blocks_from_paths,
     get_code_blocks_from_auto_split,
@@ -53,6 +56,29 @@ def test_auto_create_split_paths_partitions_all_files(tmp_path):
     assert len(train) == 7
     assert len(eval) == 2
     assert len(test) == 1
+
+
+# --- _log_split_paths ---
+
+def test_log_split_paths(config, tmp_path):
+    config.split_log_path = tmp_path / "split_log.json"
+    train_paths = [Path("first_train_path"), Path("second_train_path")]
+    eval_paths = [Path("first_eval_path"), Path("second_eval_path")]
+    test_paths = [Path("first_test_path"), Path("second_test_path")]
+
+    _log_split_paths(config, train_paths, eval_paths, test_paths)
+
+    assert config.split_log_path.exists()
+
+    with config.split_log_path.open("r", encoding="utf-8") as file:
+        split_log = json.load(file)
+
+    assert split_log["train"][0] == str(train_paths[0])
+    assert split_log["train"][1] == str(train_paths[1])
+    assert split_log["eval"][0] == str(eval_paths[0])
+    assert split_log["eval"][1] == str(eval_paths[1])
+    assert split_log["test"][0] == str(test_paths[0])
+    assert split_log["test"][1] == str(test_paths[1])
 
 
 # --- _extract_code_blocks_rec ---
@@ -115,7 +141,8 @@ def test_get_code_blocks_from_paths_returns_empty_for_no_files(config):
 
 # --- get_code_blocks_from_auto_split ---
 
-def test_get_code_blocks_from_auto_split(config):
+def test_get_code_blocks_from_auto_split(config, mocker):
+    mocker.patch("codefinetuner.preprocess.extract._log_split_paths")
     config.train_ratio = 0.4
     config.eval_ratio = 0.3
     config.test_ratio = 0.3
@@ -153,7 +180,8 @@ def test_get_filtered_paths_excludes_non_c_files(config, tmp_path):
 
 # --- get_code_blocks_from_manual_split ---
 
-def test_get_code_blocks_from_manual_split_returns_three_iterators(config):
+def test_get_code_blocks_from_manual_split_returns_three_iterators(config, mocker):
+    mocker.patch("codefinetuner.preprocess.extract._log_split_paths")
     train_iter, eval_iter, test_iter = get_code_blocks_from_manual_split(config)
     train_blocks = list(train_iter)
     eval_blocks = list(eval_iter)
@@ -163,7 +191,8 @@ def test_get_code_blocks_from_manual_split_returns_three_iterators(config):
     assert len(test_blocks) > 0
 
 
-def test_get_code_blocks_from_manual_split_raises_without_dirs(config, tmp_path):
+def test_get_code_blocks_from_manual_split_raises_without_dirs(config, tmp_path, mocker):
+    mocker.patch("codefinetuner.preprocess.extract._log_split_paths")
     config.raw_data_path = tmp_path  # empty, no train/eval/test subdirs
     with pytest.raises(FileNotFoundError):
         get_code_blocks_from_manual_split(config)
