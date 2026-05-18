@@ -76,8 +76,7 @@
       "enumerator_list",
       "enumerator",
       "try_statement",
-      "catch_statement",
-      "finally_clause"
+      "catch_statement"
     ]
   },
   "java": {
@@ -112,6 +111,104 @@
       "static_initializer"
     ]
   }, 
+  "rust": {
+    "block_types": [
+      "function_item",
+      "function_signature_item",
+      "impl_item",
+      "trait_item",
+      "struct_item",
+      "enum_item",
+      "mod_item",
+      "closure_expression"
+    ],
+    "subblock_types": [
+      "block",
+      "parameters",
+      "let_declaration",
+      "expression_statement",
+      "if_expression",
+      "while_expression",
+      "for_expression",
+      "loop_expression",
+      "match_expression",
+      "match_arm",
+      "return_expression",
+      "field_declaration_list",
+      "enum_variant_list",
+      "declaration_list",
+      "compound_assignment_expr"
+    ]
+  },
+  "javascript": {
+    "block_types": [
+      "function_declaration",
+      "function_expression",
+      "arrow_function",
+      "method_definition",
+      "class_declaration",
+      "generator_function_declaration"
+    ],
+    "subblock_types": [
+      "statement_block",
+      "formal_parameters",
+      "lexical_declaration",
+      "variable_declaration",
+      "expression_statement",
+      "assignment_expression",
+      "augmented_assignment_expression",
+      "if_statement",
+      "while_statement",
+      "for_statement",
+      "for_in_statement",
+      "for_of_statement",
+      "switch_statement",
+      "try_statement"
+    ]
+  },
+  "go": {
+    "block_types": [
+      "function_declaration",
+      "method_declaration",
+      "func_literal"
+    ],
+    "subblock_types": [
+      "block",
+      "parameter_list",
+      "short_var_declaration",
+      "assignment_statement",
+      "inc_statement",
+      "expression_statement",
+      "if_statement",
+      "for_statement",
+      "expression_switch_statement",
+      "select_statement",
+      "go_statement",
+      "defer_statement",
+      "return_statement"
+    ]
+  },
+  "swift": {
+    "block_types": [
+      "function_declaration",
+      "class_declaration",
+      "protocol_declaration",
+      "closure_expression"
+    ],
+    "subblock_types": [
+      "function_body",
+      "statements",
+      "property_declaration",
+      "assignment",
+      "if_statement",
+      "while_statement",
+      "for_statement",
+      "switch_statement",
+      "guard_statement",
+      "do_statement",
+      "return_statement"
+    ]
+  },
   "vhdl": {
     "block_types": [
       "entity_declaration",
