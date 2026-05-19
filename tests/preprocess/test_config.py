@@ -14,9 +14,12 @@ from codefinetuner.preprocess.config import Config
 # --- Fixtures ---
 
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load a Config from the test YAML."""
     test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config.raw_data_path = None  # set to none, recalculate it in _setup_paths()
+    test_config._setup_paths()  # regenerates paths relative to the new workspace_path
     return test_config
 
 
@@ -63,7 +66,7 @@ def test_load_from_yaml_ignores_unknown_keys(tmp_path):
     assert test_config.model_name == "Qwen/Qwen2.5-Coder-1.5B"
 
 
-# --- Ratio validation ---
+# --- _invalid_ratio_raises ---
 
 def test_invalid_ratio_raises(tmp_path):
     config_text = textwrap.dedent("""
@@ -94,14 +97,6 @@ def test_setup_paths_dataset_paths_are_under_workspace(config):
     assert str(config.train_dataset_path).startswith(str(config.workspace_path))
     assert str(config.eval_dataset_path).startswith(str(config.workspace_path))
     assert str(config.test_dataset_path).startswith(str(config.workspace_path))
-
-
-# --- _ensure_output_paths_exist ---
-
-def test_ensure_output_paths_exist(config):
-    assert config.train_dataset_path.parent.is_dir()
-    assert config.eval_dataset_path.parent.is_dir()
-    assert config.test_dataset_path.parent.is_dir()
 
 
 # --- Language block loading ---

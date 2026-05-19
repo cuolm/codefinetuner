@@ -49,7 +49,7 @@ class Config:
     train_dataset_path: Path = field(init=False)
     eval_dataset_path: Path = field(init=False)
     test_dataset_path: Path = field(init=False)
-    splot_log_path: Path = field(init=False)
+    split_log_path: Path = field(init=False)
     tree_sitter_parser_path: Path | None = None
     tree_sitter_definitions_path: Path | None = None
 
@@ -86,7 +86,6 @@ class Config:
     def __post_init__(self) -> None:
         self._validate_ratio()
         self._setup_paths()
-        self._ensure_output_paths_exist()
         self._load_language_blocks()
         self._init_tree_sitter_parser()
         self.rng = np.random.default_rng(seed=self.rng_seed)
@@ -116,23 +115,6 @@ class Config:
         self.test_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "test_dataset.jsonl"
         self.split_log_path = self.preprocess_outputs_dir_path / "results" / "split_log.jsonl"
         logger.debug(f"Resolved workspace path to: {self.workspace_path}")
-
-    def _ensure_output_paths_exist(self) -> None:
-        paths = [
-            self.preprocess_outputs_dir_path,
-            self.preprocess_results_path,
-            self.train_dataset_path,
-            self.eval_dataset_path,
-            self.test_dataset_path,
-            self.split_log_path
-        ]
-
-        for path in paths:
-            if not path.parent.exists():
-                path.parent.mkdir(parents=True, exist_ok=True)
-                logger.debug(f"Created parent directory: {path.parent}")
-            else:
-                logger.debug(f"Parent directory already exists: {path.parent}")  
  
     def _load_language_blocks(self) -> None:
         blocks_path = self.tree_sitter_definitions_path 

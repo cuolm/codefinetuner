@@ -11,6 +11,7 @@ test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 
 from codefinetuner.preprocess.config import Config
 from codefinetuner.preprocess.run import(
+    _ensure_output_paths_exist,
     _clear_existing_datasets,
     _validate_and_configure_tokenizer,
     run
@@ -23,6 +24,8 @@ from codefinetuner.preprocess.run import(
 def config(tmp_path) -> Config:
     """Load a Config from the test YAML, redirecting outputs to tmp_path."""
     test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config._setup_paths()  # regenerates paths relative to the new workspace_path
     return test_config
 
 @pytest.fixture
@@ -33,9 +36,24 @@ def tokenizer(config) -> AutoTokenizer:
     return tokenizer
 
 
+# --- test_ensure_output_paths_exist ---
+
+def test_ensure_output_paths_exist(config):
+    assert not config.preprocess_outputs_dir_path.exists()
+    assert not config.train_dataset_path.parent.exists()
+    
+    _ensure_output_paths_exist(config)
+    
+    assert config.preprocess_outputs_dir_path.exists()
+    assert config.preprocess_results_path.exists()
+    assert config.train_dataset_path.parent.exists()
+
+
 # --- _clear_existing_datasets ---
 
 def test_clear_existing_datasets(config):
+    _ensure_output_paths_exist(config)
+
     config.train_dataset_path.write_text("{}", encoding="utf-8")
     config.eval_dataset_path.write_text("{}", encoding="utf-8")
     config.test_dataset_path.write_text("{}", encoding="utf-8")

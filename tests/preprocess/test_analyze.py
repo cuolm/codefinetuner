@@ -4,6 +4,8 @@ import pathlib
 import numpy as np
 import pytest
 
+from codefinetuner.preprocess.run import _ensure_output_paths_exist
+from codefinetuner.preprocess.config import Config
 from codefinetuner.preprocess.analyze import (
     _extract_middle_length,
     _load_dataset_stats,
@@ -12,7 +14,6 @@ from codefinetuner.preprocess.analyze import (
     _plot_token_distribution,
     analyze_and_plot_datasets,
 )
-from codefinetuner.preprocess.config import Config
 
 
 FIM_MIDDLE_TOKEN_ID = 10
@@ -22,9 +23,16 @@ tests_path = pathlib.Path(__file__).parent.parent
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 
 
+# --- Fixtures ---
+
 @pytest.fixture
-def config() -> Config:
-    return Config.load_from_yaml(test_config_path)
+def config(tmp_path) -> Config:
+    """Load a Config from the test YAML, redirecting outputs to tmp_path."""
+    test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config.raw_data_path = None  # set to none, recalculate it in _setup_paths()
+    test_config._setup_paths()  # regenerates paths relative to the new workspace_path
+    return test_config
 
 
 @pytest.fixture
@@ -38,8 +46,10 @@ def dataset_examples():
 
 
 @pytest.fixture
-def dataset_file(tmp_path, dataset_examples):
-    path = tmp_path / "dataset.jsonl"
+def dataset_file(config, dataset_examples):
+    _ensure_output_paths_exist(config)
+    path = config.train_dataset_path
+    
     with path.open("w", encoding="utf-8") as f:
         for example in dataset_examples:
             f.write(json.dumps(example) + "\n")
@@ -56,6 +66,8 @@ def stats_arrays():
     }
 
 
+# --- _extract_middle_length ---
+
 def test_extract_middle_length_returns_length():
     input_ids = [0, FIM_MIDDLE_TOKEN_ID, 7, 8, 4, EOS_TOKEN_ID]
     assert _extract_middle_length(input_ids, FIM_MIDDLE_TOKEN_ID, EOS_TOKEN_ID) == 3
@@ -65,6 +77,8 @@ def test_extract_middle_length_returns_none_when_missing_tokens():
     assert _extract_middle_length([1, 2, 3], FIM_MIDDLE_TOKEN_ID, EOS_TOKEN_ID) is None
     assert _extract_middle_length([1, FIM_MIDDLE_TOKEN_ID, 3, 4], FIM_MIDDLE_TOKEN_ID, EOS_TOKEN_ID) is None
 
+
+# --- _load_dataset_stats ---
 
 def test_load_dataset_stats_computes_token_and_middle_lengths(dataset_file):
     result = _load_dataset_stats(dataset_file, FIM_MIDDLE_TOKEN_ID, EOS_TOKEN_ID)
@@ -80,9 +94,12 @@ def test_load_dataset_stats_skips_blank_lines_and_missing_middle(dataset_file):
     assert len(result["middle_lengths_np"]) == 2
 
 
-def test_plot_token_distribution_saves_file(config, tmp_path, stats_arrays):
+# --- Plotting Functions ---
+
+def test_plot_token_distribution_saves_file(config, stats_arrays):
+    _ensure_output_paths_exist(config)
     config.max_token_sequence_length = 12
-    output_path = tmp_path / "token_length_distribution.png"
+    output_path = config.preprocess_results_path / "token_length_distribution.png"
 
     _plot_token_distribution(
         config,
@@ -96,10 +113,11 @@ def test_plot_token_distribution_saves_file(config, tmp_path, stats_arrays):
     assert output_path.stat().st_size > 0
 
 
-def test_plot_middle_distribution_saves_file(config, tmp_path, stats_arrays):
+def test_plot_middle_distribution_saves_file(config, stats_arrays):
+    _ensure_output_paths_exist(config)
     config.min_middle_tokens_length = 2
     config.max_middle_tokens_length = 8
-    output_path = tmp_path / "middle_token_length_distribution.png"
+    output_path = config.preprocess_results_path / "middle_token_length_distribution.png"
 
     _plot_middle_distribution(
         config,
@@ -113,8 +131,9 @@ def test_plot_middle_distribution_saves_file(config, tmp_path, stats_arrays):
     assert output_path.stat().st_size > 0
 
 
-def test_plot_split_comparison_saves_file(tmp_path, stats_arrays):
-    output_path = tmp_path / "split_sizes.png"
+def test_plot_split_comparison_saves_file(config, stats_arrays):
+    _ensure_output_paths_exist(config)
+    output_path = config.preprocess_results_path / "split_sizes.png"
 
     _plot_split_comparison(
         stats_arrays["train"],
@@ -127,32 +146,27 @@ def test_plot_split_comparison_saves_file(tmp_path, stats_arrays):
     assert output_path.stat().st_size > 0
 
 
-def test_analyze_and_plot_datasets_creates_all_plots(config, tmp_path, dataset_examples):
-    train_path = tmp_path / "train.jsonl"
-    eval_path = tmp_path / "eval.jsonl"
-    test_path = tmp_path / "test.jsonl"
+# --- analyze_and_plot_datasets ---
 
-    for path in (train_path, eval_path, test_path):
+def test_analyze_and_plot_datasets_creates_all_plots(config, dataset_examples):
+    _ensure_output_paths_exist(config)
+
+    dataset_paths = (config.train_dataset_path, config.eval_dataset_path, config.test_dataset_path)
+    for path in dataset_paths:
         with path.open("w", encoding="utf-8") as f:
             for example in dataset_examples:
                 f.write(json.dumps(example) + "\n")
 
-    results_dir = tmp_path / "results"
-    results_dir.mkdir()
-
-    config.train_dataset_path = train_path
-    config.eval_dataset_path = eval_path
-    config.test_dataset_path = test_path
-    config.preprocess_results_path = results_dir
     config.max_token_sequence_length = 12
     config.min_middle_tokens_length = 1
     config.max_middle_tokens_length = 8
 
     analyze_and_plot_datasets(config, FIM_MIDDLE_TOKEN_ID, EOS_TOKEN_ID)
 
-    assert (results_dir / "token_length_distribution.png").exists()
-    assert (results_dir / "middle_token_length_distribution.png").exists()
-    assert (results_dir / "split_sizes.png").exists()
-    assert (results_dir / "token_length_distribution.png").stat().st_size > 0
-    assert (results_dir / "middle_token_length_distribution.png").stat().st_size > 0
-    assert (results_dir / "split_sizes.png").stat().st_size > 0
+    token_dist = config.preprocess_results_path / "token_length_distribution.png"
+    middle_dist = config.preprocess_results_path / "middle_token_length_distribution.png"
+    split_sizes = config.preprocess_results_path / "split_sizes.png"
+
+    assert token_dist.exists() and token_dist.stat().st_size > 0
+    assert middle_dist.exists() and middle_dist.stat().st_size > 0
+    assert split_sizes.exists() and split_sizes.stat().st_size > 0

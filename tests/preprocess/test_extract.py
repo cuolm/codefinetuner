@@ -9,6 +9,7 @@ import pytest
 tests_path = pathlib.Path(__file__).parent.parent 
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 
+from codefinetuner.preprocess.run import _ensure_output_paths_exist
 from codefinetuner.preprocess.config import Config
 from codefinetuner.preprocess.extract import (
     auto_create_split_paths,
@@ -25,34 +26,34 @@ from codefinetuner.preprocess.extract import (
 # --- Fixtures ---
 
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load a Config from the test YAML, redirecting outputs to tmp_path."""
     test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config.raw_data_path = None  # set to none, recalculate it in _setup_paths()
+    test_config._setup_paths()  # regenerates paths relative to the new workspace_path
     return test_config
 
 
 # --- auto_create_split_paths ---
 
-def test_auto_create_split_paths_partitions_all_files(tmp_path):
+def test_auto_create_split_paths_partitions_all_files(config):
     """auto split on a flat directory should account for all files."""
-    tmp_data_path = tmp_path / "data"
-    tmp_data_path.mkdir()
+    config.raw_data_path.mkdir(parents=True, exist_ok=True)
+    
     num_files = 10
     for i in range(num_files):
-        tmp_file = tmp_data_path / f"file_{i}.c"
+        tmp_file = config.raw_data_path / f"file_{i}.c"
         tmp_file.write_text(f"int f{i}(){{}}", encoding="utf-8")
 
-    test_config = Config.load_from_yaml(test_config_path)
-    test_config.workspace_path = tmp_path
-    test_config.raw_data_path = tmp_data_path 
-    test_config.split_mode = "auto"
-    test_config.train_ratio = 0.7
-    test_config.eval_ratio = 0.2
-    test_config.test_ratio = 0.1
-    test_config._setup_paths()
-    test_config._ensure_output_paths_exist()
+    config.split_mode = "auto"
+    config.train_ratio = 0.7
+    config.eval_ratio = 0.2
+    config.test_ratio = 0.1
+    
+    _ensure_output_paths_exist(config)
 
-    train, eval, test = auto_create_split_paths(test_config)
+    train, eval, test = auto_create_split_paths(config)
     assert len(train) == 7
     assert len(eval) == 2
     assert len(test) == 1
@@ -60,8 +61,9 @@ def test_auto_create_split_paths_partitions_all_files(tmp_path):
 
 # --- _log_split_paths ---
 
-def test_log_split_paths(config, tmp_path):
-    config.split_log_path = tmp_path / "split_log.json"
+def test_log_split_paths(config):
+    _ensure_output_paths_exist(config)
+    
     train_paths = [Path("first_train_path"), Path("second_train_path")]
     eval_paths = [Path("first_eval_path"), Path("second_eval_path")]
     test_paths = [Path("first_test_path"), Path("second_test_path")]
@@ -105,8 +107,8 @@ def test_extract_code_blocks_rec_yields_correct_blocks(config):
 
 # --- get_code_blocks_from_paths ---
 
-def test_get_code_blocks_from_paths_yields_correct_blocks(config, tmp_path):
-    tmp_cfile_path = tmp_path / "test_file.c"
+def test_get_code_blocks_from_paths_yields_correct_blocks(config):
+    tmp_cfile_path = config.workspace_path / "test_file.c"
     tmp_cfile_text = textwrap.dedent("""
         int calculate_power(int base, int exp) {
             if (exp <= 0) {
@@ -126,8 +128,8 @@ def test_get_code_blocks_from_paths_yields_correct_blocks(config, tmp_path):
     assert blocks[0][1].end_point == (6, 1)
 
 
-def test_get_code_blocks_from_paths_skips_non_utf8(config, tmp_path):
-    tmp_file_path = tmp_path / "non_utf8_file.c"
+def test_get_code_blocks_from_paths_skips_non_utf8(config):
+    tmp_file_path = config.workspace_path / "non_utf8_file.c"
     tmp_file_path.write_bytes(b"\xff\xfe not utf8 \x80")  # \xff\xfe = UTF-16 BOM
     tmp_file_paths = [tmp_file_path]
     blocks = list(get_code_blocks_from_paths(config, tmp_file_paths))
@@ -143,6 +145,7 @@ def test_get_code_blocks_from_paths_returns_empty_for_no_files(config):
 
 def test_get_code_blocks_from_auto_split(config, mocker):
     mocker.patch("codefinetuner.preprocess.extract._log_split_paths")
+    config.raw_data_path = tests_path / "data"
     config.train_ratio = 0.4
     config.eval_ratio = 0.3
     config.test_ratio = 0.3
@@ -158,30 +161,40 @@ def test_get_code_blocks_from_auto_split(config, mocker):
 # --- _check_required_directories ---
 
 def test_check_required_directories_passes_when_dirs_exist(config):
-    _check_required_directories(config.raw_data_path, ["train", "eval", "test"])
+    config.raw_data_path.mkdir(parents=True, exist_ok=True)
+    
+    required_dirs = ["train", "eval", "test"]
+    for dir_name in required_dirs:
+        (config.raw_data_path / dir_name).mkdir(exist_ok=True)
+    
+    result = _check_required_directories(config.raw_data_path, required_dirs)
+    assert result is None
 
 
-def test_check_required_directories_raises_when_dir_missing(tmp_path):
+def test_check_required_directories_raises_when_dir_missing(config):
+    missing_dir_target = config.workspace_path / "missing_root"
     with pytest.raises(FileNotFoundError, match="Missing directories"):
-        _check_required_directories(tmp_path, ["train", "eval", "test"])
+        _check_required_directories(missing_dir_target, ["train", "eval", "test"])
 
 
 # --- _get_filtered_paths ---
 
-def test_get_filtered_paths_excludes_non_c_files(config, tmp_path):
-    tmp_readme_path = tmp_path / "test.py"
+def test_get_filtered_paths_excludes_non_c_files(config):
+    config.data_extensions = [".c"]
+    tmp_readme_path = config.workspace_path / "test.py"
     tmp_readme_path.write_text("code", encoding="utf-8")
-    tmp_cfile_path = tmp_path / "test.c"
+    tmp_cfile_path = config.workspace_path / "test.c"
     tmp_cfile_path.write_text("code", encoding="utf-8")
-    filtered_paths = _get_filtered_paths(config, tmp_path)
+    filtered_paths = _get_filtered_paths(config, config.workspace_path)
     assert len(filtered_paths) == 1
-    assert filtered_paths[0].suffix == ".c" 
+    assert filtered_paths[0].suffix == ".c"
 
 
 # --- get_code_blocks_from_manual_split ---
 
 def test_get_code_blocks_from_manual_split_returns_three_iterators(config, mocker):
     mocker.patch("codefinetuner.preprocess.extract._log_split_paths")
+    config.raw_data_path = tests_path / "data"
     train_iter, eval_iter, test_iter = get_code_blocks_from_manual_split(config)
     train_blocks = list(train_iter)
     eval_blocks = list(eval_iter)

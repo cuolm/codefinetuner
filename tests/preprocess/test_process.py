@@ -10,7 +10,6 @@ tests_path = pathlib.Path(__file__).parent.parent
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 
 from codefinetuner.preprocess.config import Config
-from codefinetuner.preprocess.extract import get_code_blocks_from_manual_split
 from codefinetuner.preprocess.process import (
     estimate_bytes_per_token_ratio,
     _extract_subblock_ranges,
@@ -29,6 +28,8 @@ from codefinetuner.preprocess.process import (
 def config(tmp_path) -> Config:
     """Load a Config from the test YAML, redirecting outputs to tmp_path."""
     test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config._setup_paths()  # regenerates paths relative to the new workspace_path
     return test_config
 
 @pytest.fixture

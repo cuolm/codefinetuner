@@ -63,6 +63,24 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _ensure_output_paths_exist(config) -> None:
+    paths = [
+        config.preprocess_outputs_dir_path,
+        config.preprocess_results_path,
+        config.train_dataset_path,
+        config.eval_dataset_path,
+        config.test_dataset_path,
+        config.split_log_path
+    ]
+
+    for path in paths:
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Created parent directory: {path.parent}")
+        else:
+            logger.debug(f"Parent directory already exists: {path.parent}")  
+
+
 def _clear_existing_datasets(config: Config) -> None:
     for file in [config.train_dataset_path, config.eval_dataset_path, config.test_dataset_path]:
         if file.exists():
@@ -92,6 +110,7 @@ def _validate_and_configure_tokenizer(config: Config, tokenizer: AutoTokenizer):
 
 
 def run(config: Config) -> None:
+    _ensure_output_paths_exist(config)
     _clear_existing_datasets(config)
 
     if config.split_mode == "auto":
