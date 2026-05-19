@@ -8,6 +8,7 @@ from transformers import AutoTokenizer
 tests_path = pathlib.Path(__file__).parent.parent 
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 
+from codefinetuner.finetune.run import _ensure_output_paths_exist
 from codefinetuner.finetune.config import Config
 from codefinetuner.finetune.train import (
     FIMDataCollator,
@@ -22,9 +23,11 @@ from codefinetuner.finetune.train import (
 # --- Fixtures ---
 
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load a Config from the test YAML."""
     test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config._setup_paths()
     return test_config
 
 
@@ -138,7 +141,8 @@ def test_train_lora_model(config, tokenizer, mocker):
         lora_model=lora_model_mock,
         tokenizer=tokenizer,
         train_dataset=train_dataset_mock,
-        eval_dataset=eval_dataset_mock
+        eval_dataset=eval_dataset_mock,
+        trainer_max_steps=100
     )
 
     training_arguments_mock.assert_called_once()
@@ -148,9 +152,10 @@ def test_train_lora_model(config, tokenizer, mocker):
 
 # --- select_checkpoint_and_save ---
 
-def test_select_checkpoint_and_save_last(config, tmp_path):
+def test_select_checkpoint_and_save_last(config):
+    _ensure_output_paths_exist(config)
+
     config.selected_checkpoint_strategy = "last"
-    config.trainer_checkpoints_dir_path = tmp_path / "checkpoints"
 
     # create dummy checkpoint folders with dummy marker 
     config.trainer_checkpoints_dir_path.mkdir()
@@ -159,8 +164,6 @@ def test_select_checkpoint_and_save_last(config, tmp_path):
         cp_dir.mkdir()
         (cp_dir / f"marker_{step}.txt").touch()
 
-    config.selected_checkpoint_path = tmp_path / "selected_checkpoint"
-    config.trainer_log_path = tmp_path / "train_log.json" 
     log_data = {
         "eval": {
             "steps": [10, 20, 30, 40, 50],
@@ -179,9 +182,10 @@ def test_select_checkpoint_and_save_last(config, tmp_path):
     assert not config.selected_checkpoint_path.with_suffix(".tmp").exists()
     
 
-def test_select_checkpoint_and_save_best(config, tmp_path):
+def test_select_checkpoint_and_save_best(config):
+    _ensure_output_paths_exist(config)
+
     config.selected_checkpoint_strategy= "best"
-    config.trainer_checkpoints_dir_path = tmp_path / "checkpoints"
 
     # create dummy checkpoint folders with dummy marker 
     config.trainer_checkpoints_dir_path.mkdir()
@@ -190,8 +194,6 @@ def test_select_checkpoint_and_save_best(config, tmp_path):
         cp_dir.mkdir()
         (cp_dir / f"marker_{step}.txt").touch()
 
-    config.selected_checkpoint_path = tmp_path / "selected_checkpoint"
-    config.trainer_log_path = tmp_path / "train_log.json" 
     log_data = {
         "eval": {
             "steps": [10, 20, 30, 40, 50],
@@ -211,26 +213,25 @@ def test_select_checkpoint_and_save_best(config, tmp_path):
 
 
 def test_select_checkpoint_and_save_invalid_strategy_raises(config):
+    _ensure_output_paths_exist(config)
+
     config.selected_checkpoint_strategy = "random"
 
     with pytest.raises(ValueError, match="Invalid selected_checkpoint_strategy"):
         select_checkpoint_and_save(config)
         
 
-def test_select_checkpoint_and_save_last_no_checkpoints_raises(config, tmp_path):
+def test_select_checkpoint_and_save_last_no_checkpoints_raises(config):
     config.selected_checkpoint_strategy = "last"
-    config.trainer_checkpoints_dir_path = tmp_path / "checkpoints"
-    config.trainer_checkpoints_dir_path.mkdir()
 
     with pytest.raises(FileNotFoundError, match="No checkpoints found"):
         select_checkpoint_and_save(config)
 
 
 def test_select_checkpoint_and_save_best_checkpoint_missing_on_disk_raises(config, tmp_path):
+    _ensure_output_paths_exist(config)
     config.selected_checkpoint_strategy = "best"
-    config.trainer_checkpoints_dir_path = tmp_path / "checkpoints"
     config.trainer_checkpoints_dir_path.mkdir()
-    config.trainer_log_path = tmp_path / "train_log.json"
 
     # only create checkpoints for steps 10 and 20, best (step 40) is missing
     for step in [10, 20]:
@@ -249,9 +250,10 @@ def test_select_checkpoint_and_save_best_checkpoint_missing_on_disk_raises(confi
         select_checkpoint_and_save(config)
 
 
-def test_select_checkpoint_and_save_best_empty_eval_steps_raises(config, tmp_path):
+def test_select_checkpoint_and_save_best_empty_eval_steps_raises(config):
+    _ensure_output_paths_exist(config)
+
     config.selected_checkpoint_strategy = "best"
-    config.trainer_log_path = tmp_path / "train_log.json"
 
     log_data = {
         "eval": {
@@ -280,14 +282,14 @@ def test_merge_lora_and_save(config, tokenizer, mocker):
 
 # --- save_log ---
 
-def test_save_log_path_exists(config, log_history, tmp_path):
-    config.trainer_log_path = tmp_path / "train_log.json"
+def test_save_log_path_exists(config, log_history):
+    _ensure_output_paths_exist(config)
     save_log(config, log_history)
     assert config.trainer_log_path.exists()
 
 
-def test_save_log_writes_valid_json(config, log_history, tmp_path):
-    config.trainer_log_path = tmp_path / "train_log.json"
+def test_save_log_writes_valid_json(config, log_history):
+    _ensure_output_paths_exist(config)
     save_log(config, log_history)
     with config.trainer_log_path.open("r", encoding="utf-8") as log_file:
         data = json.load(log_file)
@@ -295,8 +297,8 @@ def test_save_log_writes_valid_json(config, log_history, tmp_path):
     assert "eval" in data
  
  
-def test_save_log_all_keys_present(config, log_history, tmp_path):
-    config.trainer_log_path = tmp_path / "train_log.json"
+def test_save_log_all_keys_present(config, log_history):
+    _ensure_output_paths_exist(config)
     save_log(config, log_history)
     with config.trainer_log_path.open("r", encoding="utf-8") as log_file:
         data = json.load(log_file)
@@ -308,8 +310,8 @@ def test_save_log_all_keys_present(config, log_history, tmp_path):
     assert "loss" in data["eval"]
  
 
-def test_save_log_correct_number_of_entries(config, log_history, tmp_path):
-    config.trainer_log_path = tmp_path / "train_log.json"
+def test_save_log_correct_number_of_entries(config, log_history):
+    _ensure_output_paths_exist(config)
     save_log(config, log_history)
     with config.trainer_log_path.open("r", encoding="utf-8") as log_file:
         data = json.load(log_file)
@@ -319,8 +321,9 @@ def test_save_log_correct_number_of_entries(config, log_history, tmp_path):
 
 # --- plot_loss ---
  
-def test_plot_loss(config, tmp_path):
-    config.trainer_plot_path = tmp_path / "test_plot.png"
+def test_plot_loss(config, log_history):
+    _ensure_output_paths_exist(config)
+    save_log(config, log_history)
     plot_loss(config)
     assert config.trainer_plot_path.exists()
     assert config.trainer_plot_path.stat().st_size > 0

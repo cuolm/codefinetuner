@@ -17,9 +17,11 @@ from codefinetuner.finetune.model import (
 # --- Fixtures ---
 
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load a Config from the test YAML and redirect paths to tmp_path."""
     test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config._setup_paths()
     return test_config
 
 

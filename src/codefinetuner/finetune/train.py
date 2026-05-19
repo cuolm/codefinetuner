@@ -55,8 +55,9 @@ def train_lora_model(
         tokenizer: AutoTokenizer,
         train_dataset: IterableDataset,
         eval_dataset: IterableDataset,
+        trainer_max_steps
 ) -> List: 
-    logger.info(f"Starting training: {config.trainer_max_steps} steps on {config.device}, batch_size={config.trainer_per_device_train_batch_size}") 
+    logger.info(f"Starting training: {trainer_max_steps} steps on {config.device}, batch_size={config.trainer_per_device_train_batch_size}") 
 
     if config.model_dtype == torch.bfloat16:
         trainer_bf16 = True
@@ -76,7 +77,7 @@ def train_lora_model(
         learning_rate=config.trainer_learning_rate,
         weight_decay=config.trainer_weight_decay,
         max_grad_norm=config.trainer_max_grad_norm,
-        max_steps=config.trainer_max_steps,
+        max_steps=trainer_max_steps,
         lr_scheduler_type=config.trainer_lr_scheduler_type,
         warmup_steps=config.trainer_warmup_steps,
         eval_strategy=config.trainer_eval_strategy,

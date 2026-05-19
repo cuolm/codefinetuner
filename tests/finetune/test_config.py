@@ -12,13 +12,16 @@ from codefinetuner.finetune.config import Config
 # --- Fixtures ---
 
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load a Config from the test YAML."""
     test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config.raw_data_path = None  # set to none, recalculate it in _setup_paths()
+    test_config._setup_paths()  # regenerates paths relative to the new workspace_path
     return test_config
 
 
-# --- Config.load_from_yaml ---
+# --- load_from_yaml ---
 
 def test_load_from_yaml_success(config):
     assert config.model_name == "tests/models/Qwen2.5-Coder-0.5B"
@@ -64,42 +67,43 @@ def test_load_from_yaml_ignores_unknown_keys(tmp_path):
 
 # --- _setup_paths ---
 
-def test_setup_paths_dataset_paths_are_under_workspace(config):
-    assert str(config.train_dataset_path).startswith(str(config.workspace_path))
-    assert str(config.eval_dataset_path).startswith(str(config.workspace_path))
+def test_setup_paths_all_paths_are_initialized_correctly(config):
+    path_attributes = [
+        "train_dataset_path",
+        "eval_dataset_path",
+        "finetune_outputs_dir_path",
+        "trainer_checkpoints_dir_path",
+        "trainer_model_merge_offload_folder_path",
+        "trainer_log_path",
+        "trainer_plot_path",
+        "selected_checkpoint_path",
+        "lora_model_path"
+    ]
+    
+    for attr in path_attributes:
+        path = getattr(config, attr)
+        assert isinstance(path, pathlib.Path), f"{attr} should be a Path object"
+        assert str(path).startswith(str(config.workspace_path)), f"{attr} is not under the workspace"
+        assert path.is_absolute(), f"{attr} should be an absolute path"
 
 
 # --- _ensure_output_paths_exist ---
 
 def test_ensure_output_paths_exist_creates_parent_dirs(config):
-    assert config.finetune_outputs_dir_path.parent.exists()
-    assert config.trainer_checkpoints_dir_path.parent.exists()
-    assert config.trainer_model_merge_offload_folder_path.parent.exists()
-    assert config.trainer_log_path.parent.exists() 
-    assert config.trainer_plot_path.parent.exists()
-    assert config.selected_checkpoint_path.parent.exists()
-    assert config.lora_model_path.parent.exists()
-
-
-# --- _get_dataset_length ---
-
-def test_get_dataset_length_counts_lines(config):
-    length = config._get_dataset_length(config.train_dataset_path)
-    assert length > 0
-
-
-def test_get_dataset_length_raises_for_missing_file(config, tmp_path):
-    missing = tmp_path / "missing.jsonl"
-    with pytest.raises(FileNotFoundError):
-        config._get_dataset_length(missing)
-
-
-# --- _calculate_max_steps ---
-
-def test_calculate_max_steps_returns_positive_value(config):
-    assert config.trainer_max_steps > 0
-
-
-def test_calculate_max_steps_returns_zero_for_empty_dataset(config):
-    config.dataset_train_dataset_length = 0
-    assert config._calculate_max_steps() == 0
+    from codefinetuner.finetune.run import _ensure_output_paths_exist
+    
+    _ensure_output_paths_exist(config)
+    
+    paths_to_check = [
+        "finetune_outputs_dir_path",
+        "trainer_checkpoints_dir_path",
+        "trainer_model_merge_offload_folder_path",
+        "trainer_log_path",
+        "trainer_plot_path",
+        "selected_checkpoint_path",
+        "lora_model_path"
+    ]
+    
+    for attr in paths_to_check:
+        path = getattr(config, attr)
+        assert path.parent.exists(), f"Parent directory for {attr} ({path.parent}) was not created."
