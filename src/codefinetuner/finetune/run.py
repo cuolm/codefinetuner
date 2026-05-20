@@ -136,20 +136,20 @@ def _get_dataset_length(path: Path) -> int:
     return count
 
 
-def _calculate_max_steps(config, train_dataset_lenght) -> int:
+def _calculate_max_steps(config, train_dataset_length) -> int:
     """
     Calculates total steps based on effective batch size and dataset length.
     Because we use streaming dataset iterators for efficiency, we cannot use num_train_epochs trainer class parameter directly.
     Instead, we need to calculate max_steps and pass it to the trainer.
     """
-    if train_dataset_lenght == 0:
+    if train_dataset_length == 0:
         logger.warning("Dataset length is 0; max_steps will be 0.")
         return 0
         
     effective_batch_size = (config.trainer_per_device_train_batch_size * config.trainer_gradient_accumulation_steps)
     if effective_batch_size == 0:
         raise ValueError("Effective batch size (batch_size * grad_accum) cannot be zero.")
-    steps_per_epoch = math.ceil(config.dataset_train_dataset_length / effective_batch_size)
+    steps_per_epoch = math.ceil(train_dataset_length / effective_batch_size)
     max_steps = steps_per_epoch * config.trainer_num_train_epochs
     logger.debug(f"Calculated training schedule: {max_steps} total steps ({steps_per_epoch} steps/epoch for {config.trainer_num_train_epochs} epochs)")
     return max_steps
