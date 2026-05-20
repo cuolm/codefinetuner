@@ -1,14 +1,14 @@
 import json
 import math
 import pathlib
- 
+
 import pytest
 from transformers import AutoTokenizer
 import torch
- 
+
 tests_path = pathlib.Path(__file__).parent.parent
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
- 
+
 from codefinetuner.evaluate.run import _ensure_output_paths_exist
 from codefinetuner.evaluate.config import Config
 from codefinetuner.evaluate.generate import (
@@ -41,12 +41,12 @@ BENCHMARK_EXAMPLES = [
         "middle": "return a - b;"
     }
 ]
- 
+
 # --- Fixtures ---
- 
+
 @pytest.fixture
 def config(tmp_path) -> Config:
-    """Load an evaluate Config from the test YAML."""
+    """Load an evaluate Config from the test YAML and isolate paths to tmp_path."""
     test_config = Config.load_from_yaml(test_config_path)
     test_config.workspace_path = tmp_path
     test_config._setup_paths()
@@ -60,63 +60,9 @@ def config(tmp_path) -> Config:
 
 
 @pytest.fixture
-def tokenizer(mocker):
-    """Creates a mock tokenizer instance using nested configurations."""
-    tokenizer_instance_mock = mocker.patch("transformers.AutoTokenizer")
-
-    def dummy_convert_tokens_to_ids(token: str) -> int:
-        token_to_id_map = {
-            "<|fim_pad|>": 0,
-            "<|fim_prefix|>": 1,
-            "<|fim_suffix|>": 2,
-            "<|fim_middle|>": 3,
-            "<|endoftext|>": 4
-        }
-        return token_to_id_map.get(token, -1)
-
-    def dummy_decode(token_ids: list[int], **kwargs) -> str:
-        # 14, 15, 16 are the generated tokens from our test model outputs
-        if token_ids == [14, 15, 16]:
-            return "return a + b;"
-        # 10, 11, 12 are distinct from special structural IDs (0-4)
-        if token_ids == [10, 11, 12]:
-            return "int add(int a, int b) {"
-        return ""
-
-    class MockBatchEncoding(dict):
-        """Helper to simulate HuggingFace BatchEncoding tensor device placement."""
-        def to(self, device):
-            return self
-
-    def dummy_pad(features: dict, padding=True, return_tensors=None) -> MockBatchEncoding:
-        input_ids = features["input_ids"]
-        max_len = max(len(seq) for seq in input_ids)
-        
-        padded_ids = [seq + [0] * (max_len - len(seq)) for seq in input_ids]
-        attention_mask = [[1] * len(seq) + [0] * (max_len - len(seq)) for seq in input_ids]
-        
-        return MockBatchEncoding({
-            "input_ids": torch.tensor(padded_ids),
-            "attention_mask": torch.tensor(attention_mask)
-        })
-
-    # Setting side effects and static properties directly on the mock
-    tokenizer_instance_mock.convert_tokens_to_ids.side_effect = dummy_convert_tokens_to_ids
-    tokenizer_instance_mock.decode.side_effect = dummy_decode
-    tokenizer_instance_mock.pad.side_effect = dummy_pad
-    
-    tokenizer_instance_mock.pad_token_id = 0
-    tokenizer_instance_mock.pad_token = "<|fim_pad|>"
-
-    return tokenizer_instance_mock
-
-@pytest.fixture
-def benchmark_dataset_path(tmp_path):
-    path = tmp_path / "test_benchmark_dataset.jsonl"
-    with path.open("w") as f:
-        for example in BENCHMARK_EXAMPLES:
-            f.write(json.dumps(example) + "\n")
-    return path
+def tokenizer(config) -> AutoTokenizer:
+    """Load the real pinned local tokenizer configuration."""
+    return AutoTokenizer.from_pretrained(config.model_name)
 
 
 # --- _load_lora_model ---
@@ -243,7 +189,7 @@ def test_generate(config, tokenizer, mocker):
     assert generated_middle_token_ids_batch == [[4, 5, 6], [14, 15, 16]]
 
 
-# --- _generate_and_save ---
+# --- generate_and_save ---
 
 def test_generate_and_save_passes(config, tokenizer, mocker):
     _ensure_output_paths_exist(config)
@@ -266,8 +212,7 @@ def test_generate_and_save_passes(config, tokenizer, mocker):
 
     generate_and_save(config, "checkpoint-test")
 
-    # this must match what tokenizer fixture defines
-    generated_middle_tokens = "return a + b;"
+    generated_middle_tokens = tokenizer.decode(generated_middle_token_ids, skip_special_tokens=True)
 
     with config.benchmark_evaluation_results_path.open("r") as evaluation_results_file:
         lines = evaluation_results_file.readlines()
@@ -281,8 +226,6 @@ def test_generate_and_save_passes(config, tokenizer, mocker):
         assert result["lora_generated_middle"] == generated_middle_tokens
         assert result["base_perplexity"] == calculated_perplexity
         assert result["lora_perplexity"] == calculated_perplexity
-
-    assert tokenizer.decode.call_count == len(BENCHMARK_EXAMPLES) * 2
 
     expected_calls = len(BENCHMARK_EXAMPLES) * 2
     load_lora_model_mock.assert_called_once()

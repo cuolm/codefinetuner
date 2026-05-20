@@ -1,20 +1,19 @@
-
 import json
 import pathlib
- 
+
 import pytest
 from transformers import AutoTokenizer
- 
+
 tests_path = pathlib.Path(__file__).parent.parent
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
- 
+
 from codefinetuner.evaluate.run import _ensure_output_paths_exist
 from codefinetuner.evaluate.config import Config
 from codefinetuner.evaluate.benchmark import _extract_fim_parts, create_benchmark_dataset
- 
- 
+
+
 # --- Fixtures ---
- 
+
 @pytest.fixture
 def config(tmp_path) -> Config:
     """Load an evaluate Config from the test YAML."""
@@ -25,64 +24,85 @@ def config(tmp_path) -> Config:
 
 
 @pytest.fixture
-def tokenizer(mocker):
-    tokenizer_instance_mock = mocker.patch("transformers.AutoTokenizer")
+def tokenizer(config) -> AutoTokenizer:
+    """Load the pinned local tokenizer from tests/models/."""
+    return AutoTokenizer.from_pretrained(config.model_name)
 
-    def dummy_convert_tokens_to_ids(token: str) -> int:
-        token_to_id_map = {
-            "<|fim_prefix|>": 1,
-            "<|fim_suffix|>": 2,
-            "<|fim_middle|>": 3,
-            "<|endoftext|>": 4
-        }
-        return token_to_id_map.get(token, -1)
 
-    def dummy_decode(token_ids: list[int], **kwargs) -> str:
-        if token_ids == [10, 11]:
-            return "int n = 0;"
-        if token_ids == [20, 21]:
-            return "return n;"
-        if token_ids == [30, 31]:
-            return "n += 1;"
-        return ""
+@pytest.fixture
+def example(config, tokenizer) -> list[int]:
+    """
+    Build a minimal but valid FIM token-id sequence from known text using the
+    real tokenizer, so the expected prefix/suffix/middle strings are deterministic.
+    Structure: <fim_prefix> prefix_text <fim_suffix> suffix_text <fim_middle> middle_text <eos>
+    """
+    fim_prefix_id = tokenizer.convert_tokens_to_ids(config.fim_prefix_token)
+    fim_suffix_id = tokenizer.convert_tokens_to_ids(config.fim_suffix_token)
+    fim_middle_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
+    eos_id = tokenizer.convert_tokens_to_ids(config.eos_token)
 
-    tokenizer_instance_mock.convert_tokens_to_ids.side_effect = dummy_convert_tokens_to_ids
-    tokenizer_instance_mock.decode.side_effect = dummy_decode
+    prefix_token_ids = tokenizer.encode("int n = 0;", add_special_tokens=False)
+    suffix_token_ids = tokenizer.encode("return n;", add_special_tokens=False)
+    middle_token_ids = tokenizer.encode("n += 1;", add_special_tokens=False)
 
-    return tokenizer_instance_mock 
- 
+    return (
+        [fim_prefix_id]
+        + prefix_token_ids
+        + [fim_suffix_id]
+        + suffix_token_ids
+        + [fim_middle_id]
+        + middle_token_ids
+        + [eos_id]
+    )
+
 
 # --- _extract_fim_parts ---
- 
-def test_extract_fim_parts_success(config, tokenizer):
-    config.fim_prefix_token = "<|fim_prefix|>"
-    config.fim_middle_token = "<|fim_middle|>"
-    config.fim_suffix_token = "<|fim_suffix|>"
-    config.fim_pad_token =  "<|fim_pad|>"
-    config.eos_token = "<|endoftext|>"
-    valid_token_sequence = [1, 10, 11, 2, 20, 21, 3, 30, 31, 4]
-    result = _extract_fim_parts(config, tokenizer, valid_token_sequence)
 
-    assert result["example_token_ids"] == valid_token_sequence
-    assert result["prefix_token_ids"] == [10, 11]
-    assert result["suffix_token_ids"] == [20, 21]
-    assert result["middle_token_ids"] == [30, 31]
-    assert result["prefix"] == "int n = 0;"
-    assert result["suffix"] == "return n;"
-    assert result["middle"] == "n += 1;"
+def test_extract_fim_parts_success(config, tokenizer, example):
+    result = _extract_fim_parts(config, tokenizer, example)
+
+    prefix = "int n = 0;"
+    suffix = "return n;"
+    middle = "n += 1;"
+
+    prefix_token_ids = tokenizer.encode(prefix, add_special_tokens=False)
+    suffix_token_ids = tokenizer.encode(suffix, add_special_tokens=False)
+    middle_token_ids = tokenizer.encode(middle, add_special_tokens=False)
+
+    assert result["example_token_ids"] == example
+    assert result["prefix_token_ids"] == prefix_token_ids  
+    assert result["suffix_token_ids"] == suffix_token_ids 
+    assert result["middle_token_ids"] == middle_token_ids 
+    assert result["prefix"] == prefix
+    assert result["suffix"] == suffix
+    assert result["middle"] == middle
 
 
-def test_extract_fim_parts_raises_error_if_token_missing(config, tokenizer):
-    # missing the EOS token (ID 4)
-    broken_sequence = [1, 10, 11, 2, 20, 21, 3, 30, 31]
+def test_extract_fim_parts_raises_error_if_token_missing(config, tokenizer, example):
+    # missing the EOS token (last token)
+    broken_sequence = example[:-1]
     
     with pytest.raises(ValueError, match="Missing FIM or EOS tokens in the sequence."):
         _extract_fim_parts(config, tokenizer, broken_sequence)
 
 
 def test_extract_fim_parts_raises_error_if_wrong_order(config, tokenizer):
-    # FIM markers out of order: Prefix (1), Middle (3), Suffix (2), EOS (4)
-    scrambled_sequence = [1, 10, 11, 3, 30, 31, 2, 20, 21, 4]
+    fim_prefix_id = tokenizer.convert_tokens_to_ids(config.fim_prefix_token)
+    fim_suffix_id = tokenizer.convert_tokens_to_ids(config.fim_suffix_token)
+    fim_middle_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
+    eos_id = tokenizer.convert_tokens_to_ids(config.eos_token)
+
+    prefix_token_ids = tokenizer.encode("int n = 0;", add_special_tokens=False)
+    suffix_token_ids = tokenizer.encode("return n;", add_special_tokens=False)
+    middle_token_ids = tokenizer.encode("n += 1;", add_special_tokens=False)
+
+    # Out of order sequence: Prefix -> Middle -> Suffix -> EOS
+    scrambled_sequence = (
+        [fim_prefix_id] + prefix_token_ids +
+        [fim_middle_id] + middle_token_ids +
+        [fim_suffix_id] + suffix_token_ids +
+        [eos_id]
+    )
     
     with pytest.raises(ValueError, match="FIM tokens are in the wrong order."):
         _extract_fim_parts(config, tokenizer, scrambled_sequence) 
@@ -90,19 +110,17 @@ def test_extract_fim_parts_raises_error_if_wrong_order(config, tokenizer):
 
 # --- create_benchmark_dataset ---
 
-def test_create_benchmark_dataset(config, tokenizer, mocker):
+def test_create_benchmark_dataset(config, tokenizer, example):
     _ensure_output_paths_exist(config)
-    mocker.patch(
-        "codefinetuner.evaluate.benchmark.AutoTokenizer.from_pretrained", 
-        return_value=tokenizer
-    )
 
-    valid_token_sequence = [1, 10, 11, 2, 20, 21, 3, 30, 31, 4]
+    # Missing elements sequence to trigger pipeline skip logic
+    invalid_sequence = [example[0], example[2]] 
+
     dummy_input_data = [
-        {"input_ids": valid_token_sequence, "attention_mask": [1] * 10, "labels": valid_token_sequence},
-        {"input_ids": valid_token_sequence, "attention_mask": [1] * 10, "labels": valid_token_sequence},
-        {"input_ids": [1, 2, 3], "attention_mask": [1, 1, 1], "labels": [1, 2, 3]}, # Invalid sequence to test skip logic
-        {"input_ids": valid_token_sequence, "attention_mask": [1] * 10, "labels": valid_token_sequence},
+        {"input_ids": example, "attention_mask": [1] * len(example), "labels": example},
+        {"input_ids": example, "attention_mask": [1] * len(example), "labels": example},
+        {"input_ids": invalid_sequence, "attention_mask": [1, 1], "labels": invalid_sequence},
+        {"input_ids": example, "attention_mask": [1] * len(example), "labels": example},
     ]
     
     config.test_dataset_path.parent.mkdir(parents=True, exist_ok=True)

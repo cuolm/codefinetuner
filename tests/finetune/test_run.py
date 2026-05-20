@@ -169,12 +169,12 @@ def test_calculate_max_steps_logic(config):
     config.dataset_train_dataset_length = 100 
     
     # Math: batch = 2 * 2 = 4. Steps per epoch = ceil(100 / 4) = 25. Max steps = 25 * 3 = 75.
-    max_steps = _calculate_max_steps(config, train_dataset_lenght=100)
+    max_steps = _calculate_max_steps(config, train_dataset_length=100)
     assert max_steps == 75
 
 
 def test_calculate_max_steps_zero_length(config):
-    assert _calculate_max_steps(config, train_dataset_lenght=0) == 0
+    assert _calculate_max_steps(config, train_dataset_length=0) == 0
 
 
 def test_calculate_max_steps_zero_batch_size_raises(config):
@@ -182,7 +182,7 @@ def test_calculate_max_steps_zero_batch_size_raises(config):
     config.trainer_gradient_accumulation_steps = 2
     
     with pytest.raises(ValueError, match="cannot be zero"):
-        _calculate_max_steps(config, train_dataset_lenght=100)
+        _calculate_max_steps(config, train_dataset_length=100)
 
 
 # --- run ---

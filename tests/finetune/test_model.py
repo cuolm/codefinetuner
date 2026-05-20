@@ -1,7 +1,5 @@
 import pathlib
 import pytest
-from datasets import IterableDataset
-from transformers import AutoTokenizer
 
 tests_path = pathlib.Path(__file__).parent.parent 
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
