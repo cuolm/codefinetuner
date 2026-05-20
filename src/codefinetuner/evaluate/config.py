@@ -69,7 +69,6 @@ class Config:
     # --- Hardware Configuration ---
     device: str = field(init=False)
     model_dtype: Any = field(init=False)  # # type hint Any because omegaconf does not support torch.dtype 
-    _nltk_initialized: bool = field(init=False, default=False)
 
     # --- Paths ---
     workspace_path: Path | None = None 

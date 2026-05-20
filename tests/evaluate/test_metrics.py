@@ -2,9 +2,11 @@ import pytest
 import pathlib
 
 from codefinetuner.evaluate.config import Config
+import codefinetuner.evaluate.metrics as metrics
 from codefinetuner.evaluate.metrics import (
     _codebleu_structure_valid,
     get_codebleu,
+    _ensure_nltk_initialized,
     get_sentencebleu,
     get_exact_match,
     get_line_match,
@@ -102,7 +104,34 @@ def test_get_codebleu_integration_calculation_failed(config):
     """ C_VARIABLE not complex enough to calculate codebleu """
     score, valid = get_codebleu(config, C_VARIABLE, C_VARIABLE)
     assert valid is False 
-    assert score == 0.0 
+    assert score == 0.0
+
+
+# --- _ensure_nltk_initialized ---
+
+def test_ensure_nltk_initialized_skips_if_already_done(config, mocker):
+    download_mock = mocker.patch("nltk.download")
+    mocker.patch("codefinetuner.evaluate.metrics._NLTK_INITIALIZED", True)
+
+    _ensure_nltk_initialized()
+    download_mock.assert_not_called()
+
+
+def test_ensure_nltk_initialized_runs_successfully(config, mocker):
+    download_mock = mocker.patch("nltk.download")
+    mocker.patch("codefinetuner.evaluate.metrics._NLTK_INITIALIZED", False)
+
+    _ensure_nltk_initialized()
+    assert download_mock.call_count == 2
+    assert metrics._NLTK_INITIALIZED is True
+
+
+def test_ensure_nltk_initialized_raises_runtime_error_on_failure(config, mocker):
+    mocker.patch("nltk.download", side_effect=Exception("Network connection timeout"))
+    mocker.patch("codefinetuner.evaluate.metrics._NLTK_INITIALIZED", False)
+
+    with pytest.raises(RuntimeError, match="NLTK initializerion failed"):
+        _ensure_nltk_initialized() 
 
 
 # --- get_sentencebleu ---

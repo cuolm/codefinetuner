@@ -4,11 +4,16 @@ from nltk.tokenize import word_tokenize
 from nltk.translate.bleu_score import SmoothingFunction, sentence_bleu
 from rapidfuzz.distance import Levenshtein
 
+import nltk
+
 from .codebleu_shim import codebleu_score
 from .config import Config
 
 
 logger = logging.getLogger(__name__)
+
+
+_NLTK_INITIALIZED = False
 
 
 def _codebleu_structure_valid(config: Config, reference: str) -> bool:
@@ -82,6 +87,21 @@ def get_codebleu(config: Config, reference: str, prediction: str) -> tuple[float
         return (0.0, False)
 
 
+def _ensure_nltk_initialized() -> None:
+    global _NLTK_INITIALIZED
+    if _NLTK_INITIALIZED:
+        return
+
+    logger.info("Initializing NLTK data (punkt, punkt_tab)...")
+    try:
+        nltk.download('punkt', quiet=True)  
+        nltk.download('punkt_tab', quiet=True)
+        _NLTK_INITIALIZED = True
+        logger.info("NLTK data initialized successfully.")
+    except Exception:
+        raise RuntimeError(f"NLTK initializerion failed." )
+
+
 def get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
     """
     SentenceBLEU: Measures n-gram overlap between reference and prediction.
@@ -89,6 +109,7 @@ def get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
     (Method1: Adds a tiny epsilon to all n-gram counts) to prevent a total 
     0.0 score when long sequences (e.g. 4-grams) don't match exactly.
     """
+    _ensure_nltk_initialized()
     try:
         reference_tokens = word_tokenize(reference)
         prediction_tokens = word_tokenize(prediction)
