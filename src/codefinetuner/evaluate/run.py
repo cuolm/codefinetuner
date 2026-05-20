@@ -4,6 +4,7 @@ import sys
 import logging.config
 from pathlib import Path
 
+import nltk
 from transformers.trainer_utils import get_last_checkpoint
 
 from .config import Config
@@ -70,7 +71,36 @@ def _silence_noisy_third_party_loggers() -> None:
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     logging.getLogger("matplotlib.font_manager").setLevel(logging.WARNING)
     logging.getLogger("nltk").setLevel(logging.WARNING)
-    # add more as needed
+
+
+def _ensure_output_paths_exist(config) -> None:
+    paths = [
+        config.evaluate_outputs_dir_path,
+        config.benchmark_dataset_path,
+        config.benchmark_evaluation_results_dir,
+        config.benchmark_evaluation_results_path,
+        config.benchmark_analysis_results_path,
+    ]
+    for path in paths:
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            logger.debug(f"Created parent directory: {path.parent}")
+        else:
+            logger.debug(f"Parent directory already exists: {path.parent}")
+
+
+def _ensure_nltk_initialized(config) -> None:
+    if config._nltk_initialized:
+        return
+
+    logger.info("Initializing NLTK data (punkt, punkt_tab)...")
+    try:
+        nltk.download('punkt', quiet=True)  
+        nltk.download('punkt_tab', quiet=True)
+        config._nltk_initialized = True
+        logger.info("NLTK data initialized successfully.")
+    except Exception:
+        raise RuntimeError(f"NLTK initializerion failed." )
     
 
 def _get_checkpoint_path(config: Config) -> Path:
@@ -86,6 +116,8 @@ def _get_checkpoint_path(config: Config) -> Path:
 
 
 def run(config: Config) -> None:
+    _ensure_output_paths_exist(config) 
+    _ensure_nltk_initialized(config)
     if not config.benchmark_use_existing_dataset or not config.benchmark_dataset_path.exists():
         dataset_len = create_benchmark_dataset(config)
         logger.info(f"Created new benchmark dataset '{config.benchmark_dataset_path}' with '{dataset_len}' examples")

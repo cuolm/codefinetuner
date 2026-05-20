@@ -89,8 +89,6 @@ def get_sentencebleu(config: Config, reference: str, prediction: str) -> float:
     (Method1: Adds a tiny epsilon to all n-gram counts) to prevent a total 
     0.0 score when long sequences (e.g. 4-grams) don't match exactly.
     """
-    config.ensure_nltk_initialized()  # make sure that required nltk downloads are done
-
     try:
         reference_tokens = word_tokenize(reference)
         prediction_tokens = word_tokenize(prediction)

@@ -4,7 +4,6 @@ from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
-import nltk
 import torch
 from omegaconf import OmegaConf, MISSING
 
@@ -112,7 +111,6 @@ class Config:
     def __post_init__(self) -> None:
         self._setup_device_and_precision()
         self._setup_paths()
-        self._ensure_output_paths_exist()
         self._validate_metric_weights()
         logger.debug("Config initialization complete.")
 
@@ -150,20 +148,6 @@ class Config:
         self.benchmark_analysis_results_path = self.benchmark_evaluation_results_dir / "analysis_results.json"
         logger.debug(f"Resolved workspace path to: {self.workspace_path}")
 
-    def _ensure_output_paths_exist(self) -> None:
-        paths = [
-            self.evaluate_outputs_dir_path,
-            self.benchmark_dataset_path,
-            self.benchmark_evaluation_results_dir,
-            self.benchmark_evaluation_results_path,
-            self.benchmark_analysis_results_path,
-        ]
-        for path in paths:
-            if not path.parent.exists():
-                path.parent.mkdir(parents=True, exist_ok=True)
-                logger.debug(f"Created parent directory: {path.parent}")
-            else:
-                logger.debug(f"Parent directory already exists: {path.parent}")
 
     @property
     def metric_configs(self) -> list[tuple[str, bool]]:
@@ -175,16 +159,3 @@ class Config:
             (self.perplexity_name, False),
             (self.edit_similarity, True)
         ]
-     
-    def ensure_nltk_initialized(self) -> None:
-        if self._nltk_initialized:
-            return
-
-        logger.info("Initializing NLTK data (punkt, punkt_tab)...")
-        try:
-            nltk.download('punkt', quiet=True)  
-            nltk.download('punkt_tab', quiet=True)
-            self._nltk_initialized = True
-            logger.info("NLTK data initialized successfully.")
-        except Exception:
-            raise RuntimeError(f"NLTK initializerion failed." )

@@ -9,6 +9,7 @@ import torch
 tests_path = pathlib.Path(__file__).parent.parent
 test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
  
+from codefinetuner.evaluate.run import _ensure_output_paths_exist
 from codefinetuner.evaluate.config import Config
 from codefinetuner.evaluate.generate import (
     _load_lora_model,
@@ -44,17 +45,70 @@ BENCHMARK_EXAMPLES = [
 # --- Fixtures ---
  
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load an evaluate Config from the test YAML."""
-    return Config.load_from_yaml(test_config_path)
+    test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config._setup_paths()
+
+    test_config.fim_prefix_token = "<|fim_prefix|>"
+    test_config.fim_suffix_token = "<|fim_suffix|>"
+    test_config.fim_middle_token = "<|fim_middle|>"
+    test_config.fim_pad_token = "<|fim_pad|>"
+    test_config.eos_token = "<|endoftext|>"
+    return test_config 
 
 
 @pytest.fixture
-def tokenizer(config) -> AutoTokenizer:
-    """Load the pinned local tokenizer from tests/models/."""
-    tokenizer = AutoTokenizer.from_pretrained(config.model_name)
-    return tokenizer
+def tokenizer(mocker):
+    """Creates a mock tokenizer instance using nested configurations."""
+    tokenizer_instance_mock = mocker.patch("transformers.AutoTokenizer")
 
+    def dummy_convert_tokens_to_ids(token: str) -> int:
+        token_to_id_map = {
+            "<|fim_pad|>": 0,
+            "<|fim_prefix|>": 1,
+            "<|fim_suffix|>": 2,
+            "<|fim_middle|>": 3,
+            "<|endoftext|>": 4
+        }
+        return token_to_id_map.get(token, -1)
+
+    def dummy_decode(token_ids: list[int], **kwargs) -> str:
+        # 14, 15, 16 are the generated tokens from our test model outputs
+        if token_ids == [14, 15, 16]:
+            return "return a + b;"
+        # 10, 11, 12 are distinct from special structural IDs (0-4)
+        if token_ids == [10, 11, 12]:
+            return "int add(int a, int b) {"
+        return ""
+
+    class MockBatchEncoding(dict):
+        """Helper to simulate HuggingFace BatchEncoding tensor device placement."""
+        def to(self, device):
+            return self
+
+    def dummy_pad(features: dict, padding=True, return_tensors=None) -> MockBatchEncoding:
+        input_ids = features["input_ids"]
+        max_len = max(len(seq) for seq in input_ids)
+        
+        padded_ids = [seq + [0] * (max_len - len(seq)) for seq in input_ids]
+        attention_mask = [[1] * len(seq) + [0] * (max_len - len(seq)) for seq in input_ids]
+        
+        return MockBatchEncoding({
+            "input_ids": torch.tensor(padded_ids),
+            "attention_mask": torch.tensor(attention_mask)
+        })
+
+    # Setting side effects and static properties directly on the mock
+    tokenizer_instance_mock.convert_tokens_to_ids.side_effect = dummy_convert_tokens_to_ids
+    tokenizer_instance_mock.decode.side_effect = dummy_decode
+    tokenizer_instance_mock.pad.side_effect = dummy_pad
+    
+    tokenizer_instance_mock.pad_token_id = 0
+    tokenizer_instance_mock.pad_token = "<|fim_pad|>"
+
+    return tokenizer_instance_mock
 
 @pytest.fixture
 def benchmark_dataset_path(tmp_path):
@@ -150,7 +204,6 @@ def test_load_unsloth_lora_model_raises_import_error(config, mocker, tmp_path):
         _load_unsloth_lora_model(config, tmp_path / "checkpoint-test")
 
 
-
 # --- _get_fim_perplexities ---
 
 def test_get_fim_perplexities_calculation_passes(config, mocker):
@@ -190,49 +243,14 @@ def test_generate(config, tokenizer, mocker):
     assert generated_middle_token_ids_batch == [[4, 5, 6], [14, 15, 16]]
 
 
-# --- generate_and_save ---
+# --- _generate_and_save ---
 
-def test_generate_and_save_passes(config, tokenizer, mocker, tmp_path):
-    lora_model_mock = mocker.MagicMock()
-    load_lora_model_mock = mocker.patch("codefinetuner.evaluate.generate._load_lora_model", return_value=lora_model_mock)
-    load_tokenizer_mock = mocker.patch("codefinetuner.evaluate.generate._load_tokenizer", return_value=tokenizer)
-
-    calculated_perplexity = 0.693
-    get_fim_perplexity_mock = mocker.patch("codefinetuner.evaluate.generate._get_fim_perplexity", return_value=calculated_perplexity)
-
-    generated_middle_token_ids = [4, 5, 6]
-    generate_mock = mocker.patch("codefinetuner.evaluate.generate._generate", return_value=generated_middle_token_ids)
-    
-    config.benchmark_evaluation_results_path = tmp_path / "test_evaluation_results.jsonl"
-
-    generate_and_save(config, "checkpoint-test")
-
-    generated_middle_tokens = tokenizer.decode(generated_middle_token_ids, skip_special_tokens=True)
-    
-    with config.benchmark_evaluation_results_path.open("r") as evaluation_results_file:
-        lines = evaluation_results_file.readlines()
-        assert len(lines) > 0 
-        for line in lines:
-            result = json.loads(line)
-            assert result["base_generated_middle"] == generated_middle_tokens
-            assert result["lora_generated_middle"] == generated_middle_tokens
-            assert result["base_perplexity"] == calculated_perplexity
-            assert result["lora_perplexity"] == calculated_perplexity
-    
-    dataset_length = len(lines)
-    expected_calls = dataset_length * 2 
-    
-    load_lora_model_mock.assert_called_once()
-    load_tokenizer_mock.assert_called_once()
-    assert generate_mock.call_count == expected_calls
-    assert get_fim_perplexity_mock.call_count == expected_calls
-    lora_model_mock.disable_adapter.assert_called()
-
-
-
-
-def test_generate_and_save_passes(config, tokenizer, mocker, tmp_path, benchmark_dataset_path):
-    num_examples = len(BENCHMARK_EXAMPLES)
+def test_generate_and_save_passes(config, tokenizer, mocker):
+    _ensure_output_paths_exist(config)
+    # populate benchmark dataset
+    with config.benchmark_dataset_path.open("w") as f:
+        for example in BENCHMARK_EXAMPLES:
+            f.write(json.dumps(example) + "\n")
 
     lora_model_mock = mocker.MagicMock()
     load_lora_model_mock = mocker.patch("codefinetuner.evaluate.generate._load_lora_model", return_value=lora_model_mock)
@@ -245,17 +263,16 @@ def test_generate_and_save_passes(config, tokenizer, mocker, tmp_path, benchmark
     get_fim_perplexities_mock = mocker.patch("codefinetuner.evaluate.generate._get_fim_perplexities", return_value=[calculated_perplexity])
 
     config.generation_batch_size = 1
-    config.benchmark_dataset_path = benchmark_dataset_path
-    config.benchmark_evaluation_results_path = tmp_path / "test_evaluation_results.jsonl"
 
     generate_and_save(config, "checkpoint-test")
 
-    generated_middle_tokens = tokenizer.decode(generated_middle_token_ids, skip_special_tokens=True)
+    # this must match what tokenizer fixture defines
+    generated_middle_tokens = "return a + b;"
 
     with config.benchmark_evaluation_results_path.open("r") as evaluation_results_file:
         lines = evaluation_results_file.readlines()
 
-    assert len(lines) == num_examples
+    assert len(lines) == len(BENCHMARK_EXAMPLES)
 
     for line, example in zip(lines, BENCHMARK_EXAMPLES):
         result = json.loads(line)
@@ -265,7 +282,9 @@ def test_generate_and_save_passes(config, tokenizer, mocker, tmp_path, benchmark
         assert result["base_perplexity"] == calculated_perplexity
         assert result["lora_perplexity"] == calculated_perplexity
 
-    expected_calls = num_examples * 2
+    assert tokenizer.decode.call_count == len(BENCHMARK_EXAMPLES) * 2
+
+    expected_calls = len(BENCHMARK_EXAMPLES) * 2
     load_lora_model_mock.assert_called_once()
     load_tokenizer_mock.assert_called_once()
     assert generate_mock.call_count == expected_calls
@@ -273,8 +292,14 @@ def test_generate_and_save_passes(config, tokenizer, mocker, tmp_path, benchmark
     lora_model_mock.disable_adapter.assert_called()
 
 
-def test_generate_and_save_raises_runtime_error(config, tokenizer, mocker, tmp_path, benchmark_dataset_path):
-    """ verifies RuntimeError is raised when internal generation fails """
+def test_generate_and_save_raises_runtime_error(config, tokenizer, mocker):
+    """Verifies RuntimeError is raised when internal generation fails."""
+    _ensure_output_paths_exist(config)
+    # populate benchmark dataset
+    with config.benchmark_dataset_path.open("w") as f:
+        for example in BENCHMARK_EXAMPLES:
+            f.write(json.dumps(example) + "\n")
+
     lora_model_mock = mocker.MagicMock()
     mocker.patch("codefinetuner.evaluate.generate._load_lora_model", return_value=lora_model_mock)
     mocker.patch("codefinetuner.evaluate.generate._load_tokenizer", return_value=tokenizer)
@@ -282,10 +307,7 @@ def test_generate_and_save_raises_runtime_error(config, tokenizer, mocker, tmp_p
     mocker.patch("codefinetuner.evaluate.generate._generate", side_effect=Exception("Simulated failure"))
     
     config.generation_batch_size = 1
-    config.benchmark_dataset_path = benchmark_dataset_path
-    config.benchmark_evaluation_results_path = tmp_path / "test_evaluation_results.jsonl"
 
     with pytest.raises(RuntimeError, match="Generation failed at example 1: Simulated failure"):
         generate_and_save(config, "checkpoint-test")
-    
-     
+        

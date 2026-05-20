@@ -12,13 +12,15 @@ from codefinetuner.evaluate.config import Config
 # --- Fixtures ---
  
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load an evaluate Config from the test YAML."""
     test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config._setup_paths()
     return test_config
 
 
-# --- Config.load_from_yaml ---
+# --- load_from_yaml ---
 
 def test_load_from_yaml_success(config):
     assert config.model_name == "tests/models/Qwen2.5-Coder-0.5B"
@@ -89,20 +91,3 @@ def test_setup_paths_dataset_paths_are_under_workspace(config):
     assert str(config.benchmark_evaluation_results_path).startswith(str(config.workspace_path))
     assert str(config.benchmark_analysis_results_path).startswith(str(config.workspace_path))
 
-
-# --- _ensure_output_paths_exist ---
-
-def test_ensure_output_paths_exist_creates_parent_dirs(config):
-    assert config.evaluate_outputs_dir_path.parent.exists()
-    assert config.benchmark_dataset_path.parent.exists()
-    assert config.benchmark_evaluation_results_dir.parent.exists()
-    assert config.benchmark_evaluation_results_path.parent.exists() 
-    assert config.benchmark_analysis_results_path.parent.exists()
-
-
-# --- ensure_nltk_initialized ---
- 
-def test_ensure_nltk_initialized_sets_flag_to_true(config):
-    config._nltk_initialized = False
-    config.ensure_nltk_initialized()
-    assert config._nltk_initialized is True

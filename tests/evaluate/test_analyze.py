@@ -5,6 +5,7 @@ import pathlib
 import numpy as np
 import pytest
  
+from codefinetuner.evaluate.run import _ensure_output_paths_exist
 from codefinetuner.evaluate.config import Config
 from codefinetuner.evaluate.analyze import (
     analyze_metric,
@@ -21,9 +22,12 @@ test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 # --- Fixtures ---
  
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load an evaluate Config from the test YAML."""
-    return Config.load_from_yaml(test_config_path)
+    test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config._setup_paths()
+    return test_config 
 
 
 @pytest.fixture
@@ -80,11 +84,9 @@ def test_metric_stats_np():
 
 # --- analyze_metric ---
 
-def test_analyze_metric_correct_averages(config, tmp_path, test_evaluation_results):
-    tmp_evaluation_results_path = tmp_path / "test_evaluation_results.jsonl"
-    config.benchmark_evaluation_results_path = tmp_evaluation_results_path 
-    
-    with tmp_evaluation_results_path.open("w") as evaluation_results_file:
+def test_analyze_metric_correct_averages(config, test_evaluation_results):
+    _ensure_output_paths_exist(config)
+    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
         for example in test_evaluation_results:
             json_line = json.dumps(example)
             evaluation_results_file.write(json_line + "\n")     
@@ -99,11 +101,9 @@ def test_analyze_metric_correct_averages(config, tmp_path, test_evaluation_resul
     assert result["higher_is_better"] == True
 
 
-def test_analyze_metric_exact_and_line_match_are_binary(config, tmp_path, test_evaluation_results):
-    tmp_evaluation_results_path = tmp_path / "test_evaluation_results.jsonl"
-    config.benchmark_evaluation_results_path = tmp_evaluation_results_path 
-    
-    with tmp_evaluation_results_path.open("w") as evaluation_results_file:
+def test_analyze_metric_exact_and_line_match_are_binary(config, test_evaluation_results):
+    _ensure_output_paths_exist(config)
+    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
         for example in test_evaluation_results:
             json_line = json.dumps(example)
             evaluation_results_file.write(json_line + "\n")    
@@ -115,11 +115,9 @@ def test_analyze_metric_exact_and_line_match_are_binary(config, tmp_path, test_e
     assert result_line_match["is_binary"] == True
  
  
-def test_analyze_metric_sentencebleu_codebleu_perplexity_are_not_binary(config, tmp_path, test_evaluation_results):
-    tmp_evaluation_results_path = tmp_path / "test_evaluation_results.jsonl"
-    config.benchmark_evaluation_results_path = tmp_evaluation_results_path 
-    
-    with tmp_evaluation_results_path.open("w") as evaluation_results_file:
+def test_analyze_metric_sentencebleu_codebleu_perplexity_are_not_binary(config, test_evaluation_results):
+    _ensure_output_paths_exist(config)
+    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
         for example in test_evaluation_results:
             json_line = json.dumps(example)
             evaluation_results_file.write(json_line + "\n")     
@@ -133,15 +131,14 @@ def test_analyze_metric_sentencebleu_codebleu_perplexity_are_not_binary(config, 
     assert result_perplexity["is_binary"] == False 
  
  
-def test_analyze_metric_codebleu_skips_invalid_entries(config, tmp_path, test_evaluation_results):
+def test_analyze_metric_codebleu_skips_invalid_entries(config):
     """Entries where codebleu_valid is False must be excluded from the score arrays."""
+    _ensure_output_paths_exist(config)
     codebleu_results = [
         {"base_codebleu": 0.9, "lora_codebleu": 0.95, "codebleu_valid": True},
         {"base_codebleu": 0.0, "lora_codebleu": 0.0,  "codebleu_valid": False},
     ]
-    tmp_evaluation_results_path = tmp_path / "test_evaluation_results.jsonl"
-    config.benchmark_evaluation_results_path = tmp_evaluation_results_path
-    with tmp_evaluation_results_path.open("w") as evaluation_results_file:
+    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
         for example in codebleu_results :
             json_line = json.dumps(example)
             evaluation_results_file.write(json_line + "\n")    
@@ -175,14 +172,12 @@ def test_plot_metric_and_save_binary_metric(tmp_path, test_metric_stats_np):
 
 # --- save_all_metric_stats ---
 
-def test_save_all_metric_stats(config, tmp_path, test_metric_stats_np):
-    tmp_benchmark_analysis_results_path = tmp_path / "test_analysis_results.json"
-    config.benchmark_analysis_results_path = tmp_benchmark_analysis_results_path
-
+def test_save_all_metric_stats(config, test_metric_stats_np):
+    _ensure_output_paths_exist(config)
     save_all_metric_stats(config, test_metric_stats_np)
 
-    assert tmp_benchmark_analysis_results_path.exists()
-    assert tmp_benchmark_analysis_results_path.stat().st_size > 0
+    assert config.benchmark_analysis_results_path.exists()
+    assert config.benchmark_analysis_results_path.stat().st_size > 0
 
 
 # --- plot_all_metric_averages_and_save ---

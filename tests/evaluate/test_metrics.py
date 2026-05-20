@@ -17,9 +17,12 @@ test_config_path = tests_path / "config" / "codefinetuner_config.yaml"
 # --- Fixtures ---
 
 @pytest.fixture
-def config() -> Config:
+def config(tmp_path) -> Config:
     """Load an evaluate Config from the test YAML."""
-    return Config.load_from_yaml(test_config_path)
+    test_config = Config.load_from_yaml(test_config_path)
+    test_config.workspace_path = tmp_path
+    test_config._setup_paths()
+    return test_config 
 
 
 # --- Constants ---
