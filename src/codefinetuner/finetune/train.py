@@ -203,23 +203,35 @@ def merge_lora_and_save(config: Config, tokenizer: AutoTokenizer) -> None:
         torch.cuda.synchronize()  # wait for gpu
         torch.cuda.empty_cache()  # clear gpu cache
     
-    # ensure offload folder for merging exists before loading the model
-    config.trainer_model_merge_offload_folder_path.mkdir(parents=True, exist_ok=True)
+        # ensure offload folder for merging exists before loading the model
+        config.trainer_model_merge_offload_folder_path.mkdir(parents=True, exist_ok=True)
 
-    # load fresh base model
-    base_model = AutoModelForCausalLM.from_pretrained(
-        pretrained_model_name_or_path=config.model_name,
-        dtype=config.model_dtype,
-        device_map="auto",
-        offload_folder=str(config.trainer_model_merge_offload_folder_path),  # offload model layers to disk during loading to prevent RAM (OOM) crashes 
-        low_cpu_mem_usage=True
-    )
+        # load fresh base model
+        base_model = AutoModelForCausalLM.from_pretrained(
+            pretrained_model_name_or_path=config.model_name,
+            dtype=config.model_dtype,
+            device_map="auto",
+            offload_folder=str(config.trainer_model_merge_offload_folder_path),  # offload model layers to disk during loading to prevent RAM (OOM) crashes 
+            low_cpu_mem_usage=True
+        )
 
-    lora_model = PeftModel.from_pretrained(
-        model=base_model, 
-        model_id=config.selected_checkpoint_path,
-        offload_folder=str(config.trainer_model_merge_offload_folder_path)
-    )
+        lora_model = PeftModel.from_pretrained(
+            model=base_model, 
+            model_id=config.selected_checkpoint_path,
+            offload_folder=str(config.trainer_model_merge_offload_folder_path)
+        )
+    else:
+        # MPS (Apple Silicon) or CPU: device_map and disk offload not supported
+        # see: https://github.com/huggingface/transformers/blob/5fc9bba7fec03cdb663d30822dde095b4ed26810/docs/source/en/perf_train_special.md
+        base_model = AutoModelForCausalLM.from_pretrained(
+            pretrained_model_name_or_path=config.model_name,
+            dtype=config.model_dtype,
+            low_cpu_mem_usage=True,
+        )
+        lora_model = PeftModel.from_pretrained(
+            model=base_model,
+            model_id=config.selected_checkpoint_path,
+        )
 
     # merge lora adapter into base model and save it with the tokenizer of the model
     merged_model= lora_model.merge_and_unload() 
