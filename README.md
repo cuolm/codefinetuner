@@ -11,8 +11,8 @@ It trains a Low-Rank Adapter ([LoRA](https://arxiv.org/abs/2106.09685)) on Fill-
 - [Architecture](#architecture)
 - [Project Structure](#project-structure)
 - [How Training Examples Are Created](#how-training-examples-are-created)
-- [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
 - [Finetuned Model Usage](#finetuned-model-usage)
@@ -87,36 +87,41 @@ Here is an example illustrating how a single FIM example is created:
 <|fim_suffix|>    }\n    return count;
 <|fim_middle|>count = count + (value & 1);\n    value = (value >> 1);
 ```
+## Quick Start
+Install CodeFinetuner globally to run the pipeline anywhere on your system:
+```bash
+uv tool install codefinetuner
+```
+Create a configuration file according to the [Configuration](#configuration) section and run the pipeline:
+```bash
+codefinetuner --config="codefinetuner_config.yaml"
+```
 
 ## Installation
-
-### From PyPI
+ 
+### As a Global CLI Tool
+```bash
+uv tool install codefinetuner
+```
+ 
+### As a Library Dependency
 ```bash
 uv add codefinetuner
 # or
 pip install codefinetuner
 ```
+ 
 ### From Source
 ```bash
 git clone --recurse-submodules https://github.com/cuolm/codefinetuner
 cd codefinetuner
-
+ 
 # Using uv (Recommended)
 uv sync
-
+ 
 # Using pip
 pip install -r requirements.txt
 pip install -e .
-```
-
----
-
-## Quick Start
-Create a configuration file according to the [Configuration](#configuration) section.
-```python
-import codefinetuner
-
-codefinetuner.run_pipeline("codefinetuner_config.yaml")
 ```
 
 ## Configuration
@@ -172,11 +177,16 @@ Place source files in your `raw_data_path` (default: `workspace_path/data`).
 ## Usage
 
 ### CLI Usage
-Run the pipeline using the unified CLI:
+If installed via `uv tool install`:
+```bash
+codefinetuner --config="codefinetuner_config.yaml"
+```
+ 
+If running within the source repository cloned from GitHub:
 ```bash
 uv run codefinetuner --config="config/codefinetuner_config.yaml"
 ```
-
+ 
 **Pipeline flags**
 - `--config`: Use a different config file.
 - `--skip-preprocess`: Skip preprocessing.
@@ -184,16 +194,17 @@ uv run codefinetuner --config="config/codefinetuner_config.yaml"
 - `--skip-evaluate`: Skip evaluation.
 - `--skip-convert`: Skip conversion.
 
+
 ### Python Module Usage
 ```python
 import codefinetuner
 
 # Full pipeline
-codefinetuner.run_pipeline("path/to/codefinetuner_config.yaml")
+codefinetuner.run_pipeline("codefinetuner_config.yaml")
 
 # Skip stages
 codefinetuner.run_pipeline(
-    "path/to/codefinetuner_config.yaml",
+    "codefinetuner_config.yaml",
     skip_preprocess=True,
     skip_convert=True
 )
