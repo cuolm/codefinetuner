@@ -16,6 +16,18 @@ logger = logging.getLogger(__name__)
 _NLTK_INITIALIZED = False
 
 
+def _codebleu_language_supported(config: Config) -> bool:
+    """
+    Codebleu calcualtion package supports only this languges:
+    python, java, javascript, c, cpp, go, php, ruby, rust
+    https://github.com/k4black/codebleu
+    """
+    supported_languages = ("python", "java", "javascript", "c", "cpp", "go", "php", "ruby", "rust")
+    if config.data_language in supported_languages:
+        return True
+    return False 
+
+
 def _codebleu_structure_valid(config: Config, reference: str) -> bool:
     """
     Checks if the reference code is structurally complex enough for CodeBLEU.
@@ -31,7 +43,7 @@ def _codebleu_structure_valid(config: Config, reference: str) -> bool:
     try:
         test_weights = (0.0, 0.0, 0.5, 0.5) 
         result = codebleu_score([reference], [reference], 
-                               lang=config.codebleu_language, 
+                               lang=config.data_language, 
                                weights=test_weights)
     
         syntax_valid = result.get('syntax_match_score', 0) > 0
@@ -63,6 +75,9 @@ def get_codebleu(config: Config, reference: str, prediction: str) -> tuple[float
                (codebleu_syntax_ast_weight * syntax_ast_score) + 
                (codebleu_dataflow_weight * dataflow_score)
     """
+    if not _codebleu_language_supported(config):
+        return (0.0, False)
+    
     if not _codebleu_structure_valid(config, reference):
         return (0.0, False)
         
@@ -76,7 +91,7 @@ def get_codebleu(config: Config, reference: str, prediction: str) -> tuple[float
         
         result = codebleu_score(
             [reference], [prediction], 
-            lang=config.codebleu_language, 
+            lang=config.data_language, 
             weights=codebleu_algorithm_weights
         )
         

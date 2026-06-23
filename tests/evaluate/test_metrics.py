@@ -4,6 +4,7 @@ import pathlib
 from codefinetuner.evaluate.config import Config
 import codefinetuner.evaluate.metrics as metrics
 from codefinetuner.evaluate.metrics import (
+    _codebleu_language_supported,
     _codebleu_structure_valid,
     get_codebleu,
     _ensure_nltk_initialized,
@@ -43,6 +44,18 @@ C_VARIABLE = (
 )
 
 
+# --- _codebleu_language_supported ---
+
+def test_codebleu_language_supported_true(config):
+    config.data_language = "c"
+    assert _codebleu_language_supported(config) is True
+
+
+def test_codebleu_language_supported_false(config):
+    config.data_language = "iec61131_3_st"
+    assert _codebleu_language_supported(config) is False
+
+
 # --- _codebleu_structure_valid ---
 
 def test_codebleu_structure_valid_true(config, mocker):
@@ -69,6 +82,7 @@ def test_codebleu_structure_valid_integration_false(config):
 # --- get_codebleu ---
 
 def test_get_codebleu_passes(config, mocker):
+    mocker.patch("codefinetuner.evaluate.metrics._codebleu_language_supported", return_value=True)
     mocker.patch("codefinetuner.evaluate.metrics._codebleu_structure_valid", return_value=True)
     mocker.patch("codefinetuner.evaluate.metrics.codebleu_score", return_value={'codebleu': 0.85})
     
@@ -78,6 +92,7 @@ def test_get_codebleu_passes(config, mocker):
 
 
 def test_get_codebleu_exception(config, mocker):
+    mocker.patch("codefinetuner.evaluate.metrics._codebleu_language_supported", return_value=True)
     mocker.patch("codefinetuner.evaluate.metrics._codebleu_structure_valid", return_value=True)
     mocker.patch("codefinetuner.evaluate.metrics.codebleu_score", side_effect=Exception("Simulated codebleu error"))
 
@@ -105,6 +120,15 @@ def test_get_codebleu_integration_calculation_failed(config):
     score, valid = get_codebleu(config, C_VARIABLE, C_VARIABLE)
     assert valid is False 
     assert score == 0.0
+
+def test_get_codebleu_unsupported_language_short_circuits(config, mocker):
+    config.data_language = "iec61131_3_st"
+    structure_mock = mocker.patch("codefinetuner.evaluate.metrics._codebleu_structure_valid", return_value=True)
+
+    score, valid = get_codebleu(config, "ref", "pred")
+    assert score == 0.0
+    assert valid is False
+    structure_mock.assert_not_called()
 
 
 # --- _ensure_nltk_initialized ---

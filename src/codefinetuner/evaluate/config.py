@@ -22,6 +22,7 @@ class Config:
     eos_token: str = MISSING 
     label_pad_token_id: int = MISSING
     max_token_sequence_length: int = MISSING 
+    data_language: str = MISSING
     use_unsloth: bool = MISSING
 
     # --- Benchmark ---
@@ -38,14 +39,13 @@ class Config:
     generation_top_p: float = 0.95
 
     # --- Metrics: CodeBLEU ---
-    codebleu_language: str = "c"
     codebleu_metric_name: str = "codebleu"
     # CodeBLEU weights (must sum to 1.0)
     # see: https://arxiv.org/pdf/2009.10297  Section 4.4 for parameter suggestions 0.1, 0.1, 0.4, 0.4
-    codebleu_ngram_weight: float = 0.25  # token-level overlap (standard BLEU) 
-    codebleu_weighted_ngram_weight: float = 0.25  # keyword-level overlap (importance-weighted) 
-    codebleu_syntax_ast_weight: float = 0.25  # structural correctness (abstract syntax tree)
-    codebleu_dataflow_weight: float = 0.25  # logic consistency (variable dependency graph)   
+    codebleu_ngram_weight: float = 0.1  # token-level overlap (standard BLEU) 
+    codebleu_weighted_ngram_weight: float = 0.1  # keyword-level overlap (importance-weighted) 
+    codebleu_syntax_ast_weight: float = 0.4  # structural correctness (abstract syntax tree)
+    codebleu_dataflow_weight: float = 0.4  # logic consistency (variable dependency graph)   
 
     # --- Metrics: SentenceBLEU ---
     sentencebleu_metric_name: str = "sentencebleu"
