@@ -1,0 +1,55 @@
+(*
+ * OOP example — abstract Shape with concrete Circle and Rectangle, plus
+ * a Drawable interface.
+ *)
+
+INTERFACE IDrawable
+METHOD Draw : BOOL
+END_METHOD
+PROPERTY Color : DWORD
+GET END_GET
+SET END_SET
+END_PROPERTY
+END_INTERFACE
+
+ABSTRACT FUNCTION_BLOCK Shape IMPLEMENTS IDrawable
+VAR
+    _color : DWORD := 16#FFFFFF;
+END_VAR
+
+METHOD ABSTRACT PUBLIC Area : REAL
+END_METHOD
+
+METHOD PUBLIC Draw : BOOL
+    Draw := TRUE;
+END_METHOD
+
+PROPERTY PUBLIC Color : DWORD
+GET
+    Color := _color;
+END_GET
+SET
+    _color := Color;
+END_SET
+END_PROPERTY
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK Circle EXTENDS Shape
+VAR_INPUT
+    radius : REAL;
+END_VAR
+
+METHOD OVERRIDE PUBLIC Area : REAL
+    Area := 3.14159 * radius * radius;
+END_METHOD
+END_FUNCTION_BLOCK
+
+FUNCTION_BLOCK Rectangle EXTENDS Shape
+VAR_INPUT
+    width, height : REAL;
+END_VAR
+
+METHOD OVERRIDE PUBLIC Area : REAL
+    Area := width * height;
+END_METHOD
+END_FUNCTION_BLOCK

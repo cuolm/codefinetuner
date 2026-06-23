@@ -1,0 +1,401 @@
+name: release
+
+# Stable release flow. Triggered when commits land on main (typically from a
+# release/* PR that bumped the VERSION file). Reads VERSION as the source of
+# truth, tags v<VERSION>, creates a GitHub release with the generated
+# parser.c attached, then publishes in PARALLEL to npm / crates.io / PyPI.
+#
+# Topology:
+#   preflight  ──▶  prepare  ──▶  publish-npm
+#                            ──▶  publish-crates
+#                            ──▶  publish-pypi
+#                            ──▶  publish-nuget
+#
+# Each publish job is independent: a failure in one does not block the others.
+# A rerun re-evaluates each registry's per-version idempotence guard, so any
+# leg that already published its version is skipped instead of erroring.
+#
+# Idempotence:
+#   - Tag push & GitHub release creation skip when the tag already exists.
+#   - Each publish job queries the registry for the target version and
+#     skips if that version is already there.
+#
+# Manual control:
+#   workflow_dispatch with `only: <all|npm|crates|pypi|nuget>` lets you
+#   fire just one publish leg (e.g. when one registry was previously
+#   blocked and has since been unblocked) without re-running the others.
+#
+# Publishing is GATED on the corresponding registry secret being set:
+#   (npm)                  → published via OIDC Trusted Publishing (no token)
+#   CARGO_REGISTRY_TOKEN   → enables `cargo publish`
+#   PYPI_API_TOKEN         → enables `twine upload`
+#   NUGET_API_KEY          → enables `dotnet nuget push`
+# Steps that lack their secret are skipped (warning, not error), so a
+# partial registry rollout is supported.
+#
+# A `preflight` job runs before `prepare` and exercises each token's auth
+# endpoint. If any *configured* token has been revoked or expired, the
+# release aborts before any publish.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Which registry to publish to"
+        required: false
+        default: all
+        type: choice
+        options:
+          - all
+          - npm
+          - crates
+          - pypi
+          - nuget
+
+permissions:
+  contents: write
+  # id-token is required for `npm publish --provenance` to mint the
+  # OIDC token that signs the provenance attestation. Without it, npm
+  # rejects --provenance with EUSAGE before uploading.
+  id-token: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false   # never cancel a release mid-flight
+
+jobs:
+  preflight:
+    uses: ./.github/workflows/preflight.yml
+    secrets: inherit
+
+  # ───────────────────────────────────────────────────────────────────────
+  # Tag the version, create the GitHub release. Runs once per release;
+  # publish-* jobs fan out from this and each handle their own registry.
+  # ───────────────────────────────────────────────────────────────────────
+  prepare:
+    needs: preflight
+    runs-on: ubuntu-latest
+    outputs:
+      version:    ${{ steps.ver.outputs.version }}
+      tag:        ${{ steps.ver.outputs.tag }}
+      tag_existed: ${{ steps.guard.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with: { node-version: "22" }
+
+      - name: Install tree-sitter-cli
+        run: npm install -g tree-sitter-cli
+
+      - name: Read VERSION
+        id: ver
+        run: |
+          set -euo pipefail
+          v=$(tr -d '[:space:]' < VERSION)
+          if [ -z "$v" ]; then
+            echo "::error::VERSION file is empty"
+            exit 1
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=v$v"    >> "$GITHUB_OUTPUT"
+
+      - name: Tag idempotence guard
+        id: guard
+        run: |
+          set -euo pipefail
+          git fetch --tags --quiet
+          if git rev-parse "${{ steps.ver.outputs.tag }}" >/dev/null 2>&1; then
+            echo "Tag ${{ steps.ver.outputs.tag }} already exists; skipping tag/release creation."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify generated parser is up to date
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          tree-sitter generate
+          if [[ -n "$(git status --porcelain src/)" ]]; then
+            echo "::error::src/ is out of date in main branch."
+            exit 1
+          fi
+
+      - name: Push tag
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.ver.outputs.tag }}"
+          git push origin "${{ steps.ver.outputs.tag }}"
+
+      - name: Create GitHub release
+        if: steps.guard.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: tree-sitter-iec61131-3-st ${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          files: |
+            src/parser.c
+
+  # ───────────────────────────────────────────────────────────────────────
+  # npm publish
+  # ───────────────────────────────────────────────────────────────────────
+  publish-npm:
+    needs: prepare
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.only == 'all' ||
+      github.event.inputs.only == 'npm'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          # registry-url makes setup-node write ~/.npmrc that wires
+          # NODE_AUTH_TOKEN through to npm publish. Without this, even
+          # with NPM_TOKEN/NODE_AUTH_TOKEN in env, npm hits ENEEDAUTH.
+          registry-url: "https://registry.npmjs.org"
+
+      # OIDC trusted publishing needs npm >= 11.5.1; Node 22 ships npm 10.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Per-version idempotence guard
+        id: published
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          name=$(node -p "require('./package.json').name")
+          status=$(curl -sS -o /tmp/npm.json -w "%{http_code}" \
+            "https://registry.npmjs.org/${name}/${VERSION}")
+          echo "HTTP ${status} for ${name}@${VERSION}"
+          if [[ "${status}" == "200" ]]; then
+            echo "${name}@${VERSION} is already on npm; skipping publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Build the grammar to WebAssembly so the published tarball ships
+      # tree-sitter-iec61131_3_st.wasm (matched by the `*.wasm` files glob in
+      # package.json). This lets consumers load the parser via web-tree-sitter
+      # with no native toolchain. emsdk puts emcc on PATH for `build --wasm`.
+      - name: Set up Emscripten
+        if: steps.published.outputs.skip == 'false'
+        uses: mymindstorm/setup-emsdk@v16
+
+      - name: Install tree-sitter-cli
+        if: steps.published.outputs.skip == 'false'
+        run: npm install -g tree-sitter-cli
+
+      - name: Build WASM grammar
+        if: steps.published.outputs.skip == 'false'
+        run: tree-sitter build --wasm -o tree-sitter-iec61131_3_st.wasm .
+
+      # No token: authentication is via GitHub OIDC (npm Trusted Publishing).
+      # Configure once at npmjs.com -> the tree-sitter-iec61131-3-st package ->
+      # Settings -> Trusted Publisher (GitHub Actions, repo
+      # HeytalePazguato/tree-sitter-iec61131-3-st, workflow release.yml).
+      - name: Publish to npm (OIDC trusted publishing)
+        if: steps.published.outputs.skip == 'false'
+        run: |
+          npm install --ignore-scripts
+          npm publish --access public --provenance
+
+  # ───────────────────────────────────────────────────────────────────────
+  # crates.io publish
+  # ───────────────────────────────────────────────────────────────────────
+  publish-crates:
+    needs: prepare
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.only == 'all' ||
+      github.event.inputs.only == 'crates'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Token gate
+        id: token
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "::warning::CARGO_REGISTRY_TOKEN is not set; skipping crates.io publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Per-version idempotence guard
+        if: steps.token.outputs.skip == 'false'
+        id: published
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          name=$(grep -m1 '^name = ' Cargo.toml | sed -E 's/^name = "(.*)"/\1/')
+          # crates.io rejects unknown User-Agents (default curl UA → 403).
+          status=$(curl -sS -o /tmp/cargo.json -w "%{http_code}" \
+            -A "tree-sitter-iec61131-3-st publish guard (https://github.com/HeytalePazguato/tree-sitter-iec61131-3-st)" \
+            "https://crates.io/api/v1/crates/${name}/${VERSION}")
+          echo "HTTP ${status} for ${name}@${VERSION}"
+          if [[ "${status}" == "200" ]]; then
+            echo "${name}@${VERSION} is already on crates.io; skipping publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to crates.io
+        if: steps.token.outputs.skip == 'false' && steps.published.outputs.skip == 'false'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
+
+  # ───────────────────────────────────────────────────────────────────────
+  # PyPI publish
+  # ───────────────────────────────────────────────────────────────────────
+  publish-pypi:
+    needs: prepare
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.only == 'all' ||
+      github.event.inputs.only == 'pypi'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.11" }
+
+      - name: Token gate
+        id: token
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          if [[ -z "${PYPI_API_TOKEN:-}" ]]; then
+            echo "::warning::PYPI_API_TOKEN is not set; skipping PyPI publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Per-version idempotence guard
+        if: steps.token.outputs.skip == 'false'
+        id: published
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          name=$(grep -m1 '^name = ' pyproject.toml | sed -E 's/^name = "(.*)"/\1/')
+          status=$(curl -sS -o /tmp/pypi.json -w "%{http_code}" \
+            "https://pypi.org/pypi/${name}/${VERSION}/json")
+          echo "HTTP ${status} for ${name}@${VERSION}"
+          if [[ "${status}" == "200" ]]; then
+            echo "${name}@${VERSION} is already on PyPI; skipping publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish to PyPI (sdist only)
+        if: steps.token.outputs.skip == 'false' && steps.published.outputs.skip == 'false'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          # PyPI rejects raw `linux_*` platform tags; only manylinux /
+          # musllinux / macOS / Windows wheels are accepted. We ship sdist
+          # only for now — pip compiles src/parser.c locally on install.
+          # Pre-built wheels for the full Python × OS matrix are deferred
+          # to a later release via cibuildwheel.
+          python -m pip install --upgrade build twine
+          python -m build --sdist
+          python -m twine upload --non-interactive dist/*.tar.gz
+
+  # ───────────────────────────────────────────────────────────────────────
+  # NuGet publish
+  #
+  # Ships the C# wrapper assembly only. Consumers are responsible for
+  # making the native parser library (libtree-sitter-iec61131-3-st.{so,
+  # dylib,dll}) available at runtime, mirroring the Go binding model.
+  # Bundling per-RID prebuilt natives via runtimes/<rid>/native/ is
+  # deferred to a later release.
+  # ───────────────────────────────────────────────────────────────────────
+  publish-nuget:
+    needs: prepare
+    if: >-
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.only == 'all' ||
+      github.event.inputs.only == 'nuget'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.tag }}
+
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: "8.x" }
+
+      - name: Token gate
+        id: token
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [[ -z "${NUGET_API_KEY:-}" ]]; then
+            echo "::warning::NUGET_API_KEY is not set; skipping NuGet publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Per-version idempotence guard
+        if: steps.token.outputs.skip == 'false'
+        id: published
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          # NuGet flat-container API requires the package id lowercased.
+          # PackageId is set in TreeSitterIec61131_3St.csproj.
+          name_lower="treesitteriec61131_3st"
+          url="https://api.nuget.org/v3-flatcontainer/${name_lower}/${VERSION}/${name_lower}.${VERSION}.nupkg"
+          status=$(curl -sS -o /dev/null -w "%{http_code}" "$url")
+          echo "HTTP ${status} for ${name_lower}@${VERSION}"
+          if [[ "${status}" == "200" ]]; then
+            echo "${name_lower}@${VERSION} is already on NuGet; skipping publish."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Pack and publish to NuGet
+        if: steps.token.outputs.skip == 'false' && steps.published.outputs.skip == 'false'
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          dotnet pack bindings/c_sharp/TreeSitterIec61131_3St/TreeSitterIec61131_3St.csproj \
+            -c Release -o packages
+          dotnet nuget push "packages/*.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate

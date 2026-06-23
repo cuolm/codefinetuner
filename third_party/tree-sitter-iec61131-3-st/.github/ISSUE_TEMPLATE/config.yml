@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or idea
+    url: https://github.com/HeytalePazguato/tree-sitter-iec61131-3-st/discussions
+    about: Open-ended questions and proposals belong in Discussions, not Issues.
+  - name: Report a security vulnerability
+    url: https://github.com/HeytalePazguato/tree-sitter-iec61131-3-st/security/advisories/new
+    about: Use the private security advisory channel — do not file a public issue.

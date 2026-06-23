@@ -1,0 +1,36 @@
+name: Feature request
+description: A new capability you'd like to see.
+title: "[feat]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open-ended ideas and "what if we…" discussions belong in
+        Discussions. Use this template once the idea is concrete enough
+        to act on.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What pain are you trying to solve? Who is affected?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the new feature. Include sample input and expected output if it helps.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds, other tools, or shapes you considered and rejected.
+    validations:
+      required: false

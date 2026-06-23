@@ -1,0 +1,168 @@
+name: prerelease
+
+# Two distinct flows live here:
+#
+#   develop    -> dev-build job: regenerate the parser, run corpus tests,
+#                 upload `src/parser.c` as a workflow artifact stamped
+#                 0.0.<run_number>-dev (90d retention), trim to keep only the
+#                 latest 3 dev artifacts.
+#
+#   release/*  -> prerelease job: derive base version from branch name,
+#                 pick stage from commit-message keyword (default alpha,
+#                 [beta], [rc]), auto-increment the per-stage counter,
+#                 push the new tag, and publish a GitHub pre-release with
+#                 the generated parser.c attached. Registry publishing
+#                 (npm/crates.io/PyPI) is intentionally NOT done for
+#                 prereleases — they go out only on stable.
+on:
+  push:
+    branches: [develop, "release/**"]
+
+permissions:
+  contents: write
+  # actions: write is required so the dev-build job can list and delete old
+  # workflow artifacts via the GitHub API. Declaring any permissions block
+  # silently scopes every unlisted permission to `none`.
+  actions: write
+
+concurrency:
+  group: prerelease-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dev-build:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with: { node-version: "22" }
+
+      - name: Install tree-sitter-cli
+        run: npm install -g tree-sitter-cli
+
+      - name: Compute dev version
+        id: ver
+        run: |
+          v="0.0.${{ github.run_number }}-dev"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=v$v"     >> "$GITHUB_OUTPUT"
+
+      - name: Generate parser
+        run: tree-sitter generate
+
+      - name: Run corpus tests
+        run: tree-sitter test
+
+      - name: Upload dev artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-${{ steps.ver.outputs.version }}
+          path: |
+            src/parser.c
+            src/grammar.json
+            src/node-types.json
+          retention-days: 90
+
+      - name: Trim old dev artifacts (keep latest 3)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api --paginate \
+            "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name | contains("-dev")) | "\(.created_at)\t\(.id)"' \
+            | sort -r \
+            | awk -F'\t' 'NR>3 {print $2}' \
+            | xargs -r -I{} gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/{}"
+
+  prerelease:
+    if: startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with: { node-version: "22" }
+
+      - name: Install tree-sitter-cli
+        run: npm install -g tree-sitter-cli
+
+      - name: Compute prerelease tag
+        id: tag
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          base="${REF#refs/heads/release/}"
+          msg=$(git log -1 --pretty=%B)
+          if echo "$msg" | grep -qE '\[rc\]'; then
+            stage=rc
+          elif echo "$msg" | grep -qE '\[beta\]'; then
+            stage=beta
+          else
+            stage=alpha
+          fi
+          git fetch --tags --quiet
+          existing=$(git tag --list "v${base}-${stage}.*" | wc -l | tr -d ' ')
+          next=$((existing + 1))
+          tag="v${base}-${stage}.${next}"
+          echo "base=$base"   >> "$GITHUB_OUTPUT"
+          echo "stage=$stage" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag"     >> "$GITHUB_OUTPUT"
+          echo "Selected $tag"
+
+      - name: Idempotence guard
+        id: guard
+        run: |
+          if git rev-parse "${{ steps.tag.outputs.tag }}" >/dev/null 2>&1; then
+            echo "exists=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate parser
+        if: steps.guard.outputs.exists == 'false'
+        run: tree-sitter generate
+
+      - name: Run corpus tests
+        if: steps.guard.outputs.exists == 'false'
+        run: tree-sitter test
+
+      - name: Push tag
+        if: steps.guard.outputs.exists == 'false'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.tag.outputs.tag }}"
+          git push origin "${{ steps.tag.outputs.tag }}"
+
+      - name: Create GitHub pre-release
+        if: steps.guard.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            src/parser.c
+
+      - name: Trim old prereleases (keep latest 5)
+        if: steps.guard.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh release list --limit 100 --json tagName,isPrerelease,createdAt \
+            --jq '[.[] | select(.isPrerelease)] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' \
+            | while read -r tag; do
+                [ -z "$tag" ] && continue
+                gh release delete "$tag" --yes --cleanup-tag
+              done

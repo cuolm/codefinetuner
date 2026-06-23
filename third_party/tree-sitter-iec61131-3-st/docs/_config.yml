@@ -1,0 +1,21 @@
+title: "tree-sitter-iec61131-3-st"
+description: "tree-sitter grammar for IEC 61131-3 Structured Text — standard, dialect-extensible"
+theme: jekyll-theme-cayman
+url: "https://heytalepazguato.github.io"
+baseurl: "/tree-sitter-iec61131-3-st"
+
+show_downloads: true
+github:
+  repository_url: "https://github.com/HeytalePazguato/tree-sitter-iec61131-3-st"
+
+plugins:
+  - jekyll-relative-links
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+relative_links:
+  enabled: true
+  collections: true
+
+include:
+  - CHANGELOG.md

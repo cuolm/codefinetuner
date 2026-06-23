@@ -1,0 +1,26 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "iec61131_3_st_twincat",
+      "camelcase": "Iec61131_3StTwincat",
+      "scope": "source.iec61131-3.st.twincat",
+      "path": ".",
+      "file-types": ["TcPOU", "TcDUT", "TcGVL", "twincat.st"]
+    }
+  ],
+  "metadata": {
+    "version": "0.0.0",
+    "license": "MIT",
+    "description": "Demonstration dialect grammar — not published. See ../../EXTENDING.md."
+  },
+  "bindings": {
+    "c": false,
+    "go": false,
+    "node": false,
+    "python": false,
+    "rust": false,
+    "swift": false,
+    "zig": false
+  }
+}

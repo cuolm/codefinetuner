@@ -1,0 +1,135 @@
+name: preflight
+
+# Sanity check that each registry token in the repo's secrets is valid.
+# No artifacts are uploaded; each job hits a low-cost auth endpoint and
+# fails loudly if the credentials don't authenticate.
+#
+# Triggered three ways:
+#   1. workflow_dispatch — manual ad-hoc run (after rotating a token).
+#   2. push to develop touching this file — covers the pre-default-branch
+#      case where workflow_dispatch isn't available yet.
+#   3. workflow_call — release.yml uses this as a gate before publishing.
+#
+# Tokens that aren't set are reported as warnings and skipped, not
+# errored, so partial-token configurations are tolerated.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [develop]
+    paths:
+      - .github/workflows/preflight.yml
+
+permissions: {}
+
+concurrency:
+  group: preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # npm has no token to preflight: it publishes via OIDC Trusted Publishing,
+  # so auth is established at publish time by GitHub OIDC against the
+  # trusted-publisher config on npmjs.com (no NPM_TOKEN secret involved).
+
+  cargo:
+    name: crates.io — publish-endpoint auth probe
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CARGO_REGISTRY_TOKEN
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "::warning::CARGO_REGISTRY_TOKEN secret is not set; skipping check"
+            exit 0
+          fi
+          # crates.io's /me endpoint requires user-info scope, which
+          # publish-scoped tokens (publish-new + publish-update) lack.
+          # Probe the publish endpoint with an empty body instead:
+          #   - 400 = auth accepted, payload rejected (what we want)
+          #   - 401 / 403 = auth rejected (token bad)
+          # The empty body never produces a real publish.
+          # crates.io's data-access policy requires a User-Agent that
+          # identifies the caller; the default curl UA gets 403.
+          status=$(curl -sS -o /tmp/body -w "%{http_code}" \
+            -X PUT \
+            -A "tree-sitter-iec61131-3-st preflight (https://github.com/HeytalePazguato/tree-sitter-iec61131-3-st)" \
+            -H "Authorization: ${CARGO_REGISTRY_TOKEN}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "" \
+            https://crates.io/api/v1/crates/new)
+          echo "HTTP ${status}"
+          head -c 500 /tmp/body
+          echo
+          case "${status}" in
+            400|422)     echo "OK: auth accepted (payload rejected as expected)" ;;
+            401|403)     echo "::error::crates.io auth rejected (HTTP ${status})"; exit 1 ;;
+            *)           echo "::error::Unexpected HTTP ${status}"; exit 1 ;;
+          esac
+
+  pypi:
+    name: PyPI — upload-endpoint auth probe
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PYPI_API_TOKEN
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PYPI_API_TOKEN:-}" ]]; then
+            echo "::warning::PYPI_API_TOKEN secret is not set; skipping check"
+            exit 0
+          fi
+          # PyPI has no whoami endpoint. We POST an intentionally-empty
+          # form to the upload endpoint:
+          #   - 400 = auth accepted, payload rejected (what we want)
+          #   - 401 / 403 = auth rejected (token bad)
+          status=$(curl -sS -o /tmp/body -w "%{http_code}" \
+            -X POST \
+            -u "__token__:${PYPI_API_TOKEN}" \
+            -F ":action=file_upload" \
+            https://upload.pypi.org/legacy/)
+          echo "HTTP ${status}"
+          head -c 500 /tmp/body
+          echo
+          case "${status}" in
+            400)         echo "OK: auth accepted (payload rejected as expected)" ;;
+            401|403)     echo "::error::PyPI auth rejected (HTTP ${status})"; exit 1 ;;
+            *)           echo "::error::Unexpected HTTP ${status}"; exit 1 ;;
+          esac
+
+  nuget:
+    name: NuGet — verifykey auth probe
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify NUGET_API_KEY
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${NUGET_API_KEY:-}" ]]; then
+            echo "::warning::NUGET_API_KEY secret is not set; skipping check"
+            exit 0
+          fi
+          # NuGet's verifykey endpoint is the closest thing to a "is this
+          # key valid" probe, but it is finicky for the modern-scoped-key
+          # plus first-publish combination: it returns 400 Bad Request
+          # for keys that haven't yet pushed the target id, even when
+          # the key is valid and scoped correctly. Result interpretation:
+          #   - 200       = key authorized for TreeSitterIec61131_3St (great)
+          #   - 401 / 403 = explicit auth rejection (fatal)
+          #   - other     = endpoint quirk; warn and pass, dotnet nuget
+          #                 push is the source of truth at release time
+          status=$(curl -sS -o /tmp/body -w "%{http_code}" \
+            -H "X-NuGet-ApiKey: ${NUGET_API_KEY}" \
+            https://www.nuget.org/api/v2/verifykey/TreeSitterIec61131_3St)
+          echo "HTTP ${status}"
+          head -c 500 /tmp/body
+          echo
+          case "${status}" in
+            200)         echo "OK: key authorized for TreeSitterIec61131_3St" ;;
+            401|403)     echo "::error::NuGet auth rejected (HTTP ${status})"; exit 1 ;;
+            *)           echo "::warning::verifykey returned HTTP ${status}; cannot confirm auth via this endpoint, deferring validation to dotnet nuget push" ;;
+          esac

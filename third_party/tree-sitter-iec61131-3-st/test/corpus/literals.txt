@@ -1,0 +1,266 @@
+================================================================================
+Boolean literals
+================================================================================
+
+PROGRAM P
+VAR a : BOOL := TRUE; b : BOOL := FALSE; END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (boolean_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (boolean_literal)))))
+
+================================================================================
+Integer literals: plain, negative, with separators
+================================================================================
+
+PROGRAM P
+VAR
+  a : INT := 42;
+  b : INT := -17;
+  c : INT := 1_000_000;
+  d : INT := +5;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (integer_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (integer_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (integer_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (integer_literal)))))
+
+================================================================================
+Integer literals: base-prefixed (binary, octal, hex) with underscores
+================================================================================
+
+PROGRAM P
+VAR
+  a : BYTE := 2#1010_1010;
+  b : DWORD := 16#FFFF_FFFF;
+  c : WORD := 8#777;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (integer_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (integer_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (integer_literal)))))
+
+================================================================================
+Real literals with exponent
+================================================================================
+
+PROGRAM P
+VAR
+  a : REAL := 3.14;
+  b : REAL := 1.5E-3;
+  c : LREAL := 6.02214076e23;
+  d : REAL := 0.5;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (real_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (real_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (real_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (real_literal)))))
+
+================================================================================
+String literals: single- and double-quoted, with escape sequences
+================================================================================
+
+PROGRAM P
+VAR
+  a : STRING := 'hello';
+  b : WSTRING := "world";
+  c : STRING := 'it$'s ok';
+  d : STRING := 'tab$Tindent';
+  e : STRING := 'hex$41';
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (string_type)
+        initial_value: (string_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (string_type)
+        initial_value: (string_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (string_type)
+        initial_value: (string_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (string_type)
+        initial_value: (string_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (string_type)
+        initial_value: (string_literal)))))
+
+================================================================================
+Time, date, time-of-day, date-and-time literals
+================================================================================
+
+PROGRAM P
+VAR
+  a : TIME := T#1h2m3s;
+  b : TIME := TIME#500ms;
+  c : TIME := T#1.5h;
+  d : DATE := D#2026-05-04;
+  e : DATE := DATE#2026-05-04;
+  f : TIME_OF_DAY := TOD#12:34:56;
+  g : TIME_OF_DAY := TIME_OF_DAY#12:34:56.789;
+  h : DATE_AND_TIME := DT#2026-05-04-12:34:56;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (time_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (time_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (time_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (date_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (date_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (time_of_day_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (time_of_day_literal))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (date_and_time_literal)))))
+
+================================================================================
+Typed literals
+================================================================================
+
+PROGRAM P
+VAR
+  a : INT := INT#16;
+  b : REAL := REAL#3.14;
+  c : BOOL := BOOL#TRUE;
+  d : WORD := WORD#16#FF;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (typed_literal
+          type: (identifier)
+          value: (integer_literal)))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (typed_literal
+          type: (identifier)
+          value: (real_literal)))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (typed_literal
+          type: (identifier)
+          value: (boolean_literal)))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)
+        initial_value: (typed_literal
+          type: (identifier)
+          value: (integer_literal))))))

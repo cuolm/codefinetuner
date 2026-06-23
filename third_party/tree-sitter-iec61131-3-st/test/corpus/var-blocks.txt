@@ -1,0 +1,185 @@
+================================================================================
+VAR_INPUT, VAR_OUTPUT, VAR_IN_OUT, VAR_TEMP
+================================================================================
+
+FUNCTION_BLOCK FB
+VAR_INPUT  in1 : INT; in2 : REAL; END_VAR
+VAR_OUTPUT out1 : BOOL; END_VAR
+VAR_IN_OUT mut : DINT; END_VAR
+VAR_TEMP   t : INT; END_VAR
+END_FUNCTION_BLOCK
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_block_declaration
+    (identifier)
+    (var_input
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (var_output
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (var_in_out
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (var_temp
+      (variable_declaration
+        (identifier)
+        (elementary_type)))))
+
+================================================================================
+VAR with CONSTANT and RETAIN qualifiers
+================================================================================
+
+PROGRAM P
+VAR CONSTANT
+  PI : REAL := 3.14159;
+END_VAR
+VAR RETAIN
+  counter : DINT;
+END_VAR
+VAR CONSTANT RETAIN
+  cfg : INT := 42;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (var_qualifier_list
+        (var_qualifier))
+      (variable_declaration
+        (identifier)
+        (elementary_type)
+        (real_literal)))
+    (var_block
+      (var_qualifier_list
+        (var_qualifier))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (var_block
+      (var_qualifier_list
+        (var_qualifier)
+        (var_qualifier))
+      (variable_declaration
+        (identifier)
+        (elementary_type)
+        (integer_literal)))))
+
+================================================================================
+VAR_GLOBAL with initializers
+================================================================================
+
+VAR_GLOBAL
+  g_threshold : INT := 100;
+  g_name : STRING := 'production';
+END_VAR
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (global_var_declaration_block
+    (var_global
+      (variable_declaration
+        (identifier)
+        (elementary_type)
+        (integer_literal))
+      (variable_declaration
+        (identifier)
+        (string_type)
+        (string_literal)))))
+
+================================================================================
+Direct address (AT %I*, AT %Q*, AT %M*) with size prefixes
+================================================================================
+
+PROGRAM IO
+VAR_GLOBAL
+  switch1 AT %IX0.0 : BOOL;
+  motor   AT %QX1.2 : BOOL;
+  counter AT %MW10  : WORD;
+  big     AT %ML20  : LWORD;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_global
+      (variable_declaration
+        (identifier)
+        (direct_address)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (direct_address)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (direct_address)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (direct_address)
+        (elementary_type)))))
+
+================================================================================
+Multiple names per declaration (comma-separated)
+================================================================================
+
+PROGRAM P
+VAR
+  a, b, c : INT := 0;
+  flag, ready : BOOL;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (identifier)
+        (identifier)
+        (elementary_type)
+        (integer_literal))
+      (variable_declaration
+        (identifier)
+        (identifier)
+        (elementary_type)))))
+
+================================================================================
+VAR_EXTERNAL
+================================================================================
+
+PROGRAM P
+VAR_EXTERNAL
+  external_count : DINT;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_external
+      (variable_declaration
+        (identifier)
+        (elementary_type)))))

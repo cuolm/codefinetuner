@@ -1,0 +1,119 @@
+================================================================================
+Line comment and block comment
+================================================================================
+
+// File header comment
+PROGRAM P
+(* this is a block comment *)
+VAR
+  x : INT; // trailing line comment
+  y : INT; (* trailing block comment *)
+END_VAR
+// statement-leading comment
+x := 1;
+y := 2; // post-statement
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (comment)
+  (program_declaration
+    (identifier)
+    (comment)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (comment)
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (comment))
+    (comment)
+    (assignment_statement
+      (identifier)
+      (integer_literal))
+    (assignment_statement
+      (identifier)
+      (integer_literal))
+    (comment)))
+
+================================================================================
+Block comment with stars and parentheses
+================================================================================
+
+PROGRAM P
+(*
+ * Multi-line block comment.
+ * With stars at beginning of lines.
+ * And (parentheses) inside.
+ *)
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (comment)))
+
+================================================================================
+Pragma at top level and inside variable declaration
+================================================================================
+
+{attribute 'qualified_only'}
+PROGRAM P
+VAR
+  {attribute 'displayed_as_dec'}
+  x : INT;
+  {warning 'TODO: rewrite y'}
+  y : REAL;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (pragma)
+  (program_declaration
+    (identifier)
+    (var_block
+      (pragma)
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (pragma)
+      (variable_declaration
+        (identifier)
+        (elementary_type)))))
+
+================================================================================
+Pragma between statements
+================================================================================
+
+PROGRAM P
+VAR x : INT; END_VAR
+x := 1;
+{region "init done"}
+x := 2;
+{end_region}
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (assignment_statement
+      (identifier)
+      (integer_literal))
+    (pragma)
+    (assignment_statement
+      (identifier)
+      (integer_literal))
+    (pragma)))

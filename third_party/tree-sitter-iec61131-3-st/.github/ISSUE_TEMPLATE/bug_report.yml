@@ -1,0 +1,62 @@
+name: Bug report
+description: Something the project does wrong (crash, incorrect output, unexpected behavior).
+title: "[bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. A minimal reproducing
+        example is the most useful thing you can include.
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The version of the project where you observed the issue.
+      placeholder: "0.0.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Steps, command, or code that reproduces the bug.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Logs, stack traces, screenshots, related issues.
+    validations:
+      required: false

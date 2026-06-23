@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=62.4.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tree-sitter-iec61131-3-st"
+description = "IEC 61131-3 Structured Text grammar for tree-sitter (standard, dialect-extensible)"
+version = "0.1.2"
+keywords = ["incremental", "parsing", "tree-sitter", "iec61131-3"]
+classifiers = [
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Compilers",
+  "Topic :: Text Processing :: Linguistic",
+  "Typing :: Typed",
+]
+authors     = [{ name = "HeytalePazguato" }]
+maintainers = [{ name = "HeytalePazguato", email = "Heytale.Pazguato@gmail.com" }]
+requires-python = ">=3.10"
+license.text = "MIT"
+readme = "README.md"
+
+[project.urls]
+Homepage = "https://github.com/heytalepazguato/tree-sitter-iec61131-3-st"
+
+[project.optional-dependencies]
+core = ["tree-sitter~=0.24"]
+
+[tool.cibuildwheel]
+build = "cp310-*"
+build-frontend = "build"

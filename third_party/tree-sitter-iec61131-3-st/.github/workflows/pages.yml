@@ -1,0 +1,53 @@
+name: pages
+
+# Build and deploy the GitHub Pages site from /docs.
+#
+# Triggers on changes under /docs (or this workflow itself) on develop or
+# main. develop pushes only run the build job (validation); main pushes
+# additionally deploy. This matches the GitHub Pages environment's default
+# protection (main branch only).
+#
+# Delete this workflow if you don't want a Pages site.
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "docs/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v6
+        with: { enablement: true }
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+      - uses: actions/upload-pages-artifact@v5
+
+  deploy:
+    needs: build
+    # Only deploy from main; develop pushes still run the build job to
+    # validate the Jekyll site, but the github-pages environment is
+    # protected to main only.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

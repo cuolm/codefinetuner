@@ -1,0 +1,264 @@
+================================================================================
+Arithmetic precedence: * binds tighter than +
+================================================================================
+
+PROGRAM P
+VAR a, b, c, d : INT; END_VAR
+a := b + c * d;
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        names: (identifier)
+        names: (identifier)
+        names: (identifier)
+        type: (elementary_type)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (binary_expression
+          left: (identifier)
+          right: (identifier))))))
+
+================================================================================
+Right-associative power operator
+================================================================================
+
+PROGRAM P
+VAR a, b, c, d : REAL; END_VAR
+a := b ** c ** d;
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        names: (identifier)
+        names: (identifier)
+        names: (identifier)
+        type: (elementary_type)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (binary_expression
+          left: (identifier)
+          right: (identifier))))))
+
+================================================================================
+Logical operators: AND/&, OR, XOR, NOT
+================================================================================
+
+PROGRAM P
+VAR a, b, c : BOOL; END_VAR
+a := b AND NOT c;
+a := b OR c XOR NOT b;
+a := b & c;
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        names: (identifier)
+        names: (identifier)
+        type: (elementary_type)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (unary_expression
+          operand: (identifier))))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (binary_expression
+          left: (identifier)
+          right: (unary_expression
+            operand: (identifier)))))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))))
+
+================================================================================
+Comparison and equality operators
+================================================================================
+
+PROGRAM P
+VAR a : BOOL; b, c : INT; END_VAR
+a := b < c;
+a := b <= c;
+a := b = c;
+a := b <> c;
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type))
+      (variable_declaration
+        names: (identifier)
+        names: (identifier)
+        type: (elementary_type)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (binary_expression
+        left: (identifier)
+        right: (identifier)))))
+
+================================================================================
+Function call with positional and named arguments
+================================================================================
+
+PROGRAM P
+VAR result : INT; END_VAR
+result := MIN(1, 2, 3);
+result := AnFB(in1 := 5, out1 => result);
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (call_expression
+        function: (identifier)
+        arguments: (argument_list
+          (integer_literal)
+          (integer_literal)
+          (integer_literal))))
+    body: (assignment_statement
+      left: (identifier)
+      right: (call_expression
+        function: (identifier)
+        arguments: (argument_list
+          (named_argument
+            name: (identifier)
+            value: (integer_literal))
+          (named_argument
+            name: (identifier)
+            value: (identifier)))))))
+
+================================================================================
+Indexing and member access
+================================================================================
+
+PROGRAM P
+VAR arr : ARRAY [1..10] OF INT; pt : Point; END_VAR
+arr[3] := 42;
+pt.x := arr[1, 2];
+pt.inner.value := 0;
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (array_type
+          range: (subrange
+            lower: (integer_literal)
+            upper: (integer_literal))
+          element_type: (elementary_type)))
+      (variable_declaration
+        names: (identifier)
+        type: (identifier)))
+    body: (assignment_statement
+      left: (index_expression
+        object: (identifier)
+        index: (integer_literal))
+      right: (integer_literal))
+    body: (assignment_statement
+      left: (member_access_expression
+        object: (identifier)
+        member: (identifier))
+      right: (index_expression
+        object: (identifier)
+        index: (integer_literal)
+        index: (integer_literal)))
+    body: (assignment_statement
+      left: (member_access_expression
+        object: (member_access_expression
+          object: (identifier)
+          member: (identifier))
+        member: (identifier))
+      right: (integer_literal))))
+
+================================================================================
+Pointer dereference and address-of
+================================================================================
+
+PROGRAM P
+VAR p : POINTER TO INT; v : INT; END_VAR
+v := p^;
+p := ADR(v);
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    name: (identifier)
+    (var_block
+      (variable_declaration
+        names: (identifier)
+        type: (pointer_type
+          target: (elementary_type)))
+      (variable_declaration
+        names: (identifier)
+        type: (elementary_type)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (dereference_expression
+        pointer: (identifier)))
+    body: (assignment_statement
+      left: (identifier)
+      right: (address_of_expression
+        operand: (identifier)))))

@@ -1,0 +1,212 @@
+name: ci
+
+# Gate workflow: tree-sitter generate + corpus tests + parse all examples +
+# benchmark + per-binding (Node / Rust / Python / Go) build & test.
+# Must pass before any package or release job is allowed to run.
+on:
+  push:
+    branches: [main, develop, "release/**"]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────
+  # Grammar — the core of the project. Run on Linux only because the
+  # grammar is platform-independent and tree-sitter's CLI is fastest there.
+  # ────────────────────────────────────────────────────────────────────────
+  grammar:
+    name: grammar (corpus + examples + benchmark)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: { node-version: "22" }
+
+      - name: Install tree-sitter-cli
+        run: npm install -g tree-sitter-cli
+
+      - name: Verify generated parser is up to date
+        run: |
+          tree-sitter generate
+          if [[ -n "$(git status --porcelain src/)" ]]; then
+            echo "::error::src/ is out of date. Run 'tree-sitter generate' and commit."
+            git --no-pager diff src/
+            exit 1
+          fi
+
+      - name: Run corpus tests
+        run: tree-sitter test
+
+      - name: Parse every example file
+        run: |
+          set -euo pipefail
+          fails=0
+          for f in examples/*.st; do
+            if tree-sitter parse "$f" --quiet; then
+              echo "OK   $f"
+            else
+              echo "FAIL $f"
+              fails=$((fails + 1))
+            fi
+          done
+          if (( fails > 0 )); then
+            echo "::error::$fails example(s) failed to parse"
+            exit 1
+          fi
+
+      - name: Benchmark — parse 10 000 lines under 200 ms
+        run: |
+          # Construct a synthetic 10k-line file by repeating a representative
+          # example, then time the parse.
+          mkdir -p .benchmark
+          for i in $(seq 1 200); do
+            cat examples/pid-controller.st examples/conveyor.st examples/state-machine.st
+          done > .benchmark/big.st
+          lines=$(wc -l < .benchmark/big.st)
+          echo "Benchmark file: $lines lines"
+          start=$(date +%s%N)
+          tree-sitter parse .benchmark/big.st --quiet
+          end=$(date +%s%N)
+          elapsed_ms=$(( (end - start) / 1000000 ))
+          echo "Parse time: ${elapsed_ms} ms"
+          if (( elapsed_ms > 200 )); then
+            echo "::error::Parse exceeded 200 ms budget (${elapsed_ms} ms)"
+            exit 1
+          fi
+
+  # ────────────────────────────────────────────────────────────────────────
+  # Language bindings. Each platform / language combination compiles the
+  # generated parser and runs its smoke test.
+  # ────────────────────────────────────────────────────────────────────────
+
+  node:
+    name: node (${{ matrix.os }})
+    needs: grammar
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Pin Windows to windows-2022: `npm install` builds the node-tree-sitter
+        # dev dependency with node-gyp 11.5.0, whose Visual Studio finder cannot
+        # classify the VS 18 that the windows-latest image now ships ("unknown
+        # version undefined"), so configure fails. windows-2022 still provides
+        # VS 2022, which node-gyp detects. Revisit when node-gyp adds VS 18
+        # support or the project drops the node-tree-sitter native build.
+        os: [ubuntu-latest, macos-latest, windows-2022]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: { node-version: "22" }
+      - run: npm install
+      - run: npm test
+
+  # Builds the grammar to WebAssembly and loads it through the web-tree-sitter
+  # runtime, exercising the WASM path that downstream consumers use to avoid the
+  # native node-tree-sitter build (which fails on Node 24 / Electron without
+  # prebuilds). --ignore-scripts skips the native gyp build we don't need here.
+  wasm:
+    name: wasm (web-tree-sitter smoke)
+    needs: grammar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: { node-version: "22" }
+      - uses: mymindstorm/setup-emsdk@v16
+      - name: Install tree-sitter-cli
+        run: npm install -g tree-sitter-cli
+      - name: Build WASM grammar
+        run: tree-sitter build --wasm -o tree-sitter-iec61131_3_st.wasm .
+      - name: Install web-tree-sitter
+        run: npm install --ignore-scripts
+      - name: Parse every example via web-tree-sitter
+        run: node scripts/wasm-smoke.mjs
+
+  rust:
+    name: rust (${{ matrix.os }})
+    needs: grammar
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --all-features
+
+  python:
+    name: python (${{ matrix.os }})
+    needs: grammar
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.11", cache: "pip" }
+      - run: python -m pip install --upgrade pip build
+      - run: pip install -e ".[core]"
+      - run: python -c "import tree_sitter, tree_sitter_iec61131_3_st; lang = tree_sitter.Language(tree_sitter_iec61131_3_st.language()); print('Loaded:', lang)"
+
+  go:
+    name: go (${{ matrix.os }})
+    needs: grammar
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with: { go-version: "1.23.x" }
+      - run: go test ./bindings/go/...
+
+  csharp:
+    name: c# (${{ matrix.os }})
+    needs: grammar
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: "8.x" }
+
+      - name: Setup MSVC env (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build native library (Unix)
+        if: runner.os != 'Windows'
+        run: make
+
+      - name: Build native library (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cl /std:c11 /utf-8 /LD /I src src/parser.c src/scanner.c /Fe:tree-sitter-iec61131-3-st.dll
+        shell: cmd
+
+      - name: Run C# tests (Unix)
+        if: runner.os != 'Windows'
+        run: dotnet test bindings/c_sharp/TreeSitterIec61131_3St.Tests/
+        env:
+          LD_LIBRARY_PATH: ${{ github.workspace }}
+          DYLD_LIBRARY_PATH: ${{ github.workspace }}
+
+      - name: Run C# tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:GITHUB_WORKSPACE;$env:PATH"
+          dotnet test bindings/c_sharp/TreeSitterIec61131_3St.Tests/

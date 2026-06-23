@@ -1,0 +1,8 @@
+{
+  "name": "tree-sitter-iec61131-3-st-twincat-stub",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Demonstration dialect grammar that extends tree-sitter-iec61131-3-st with two TwinCAT-flavored constructs. Not published.",
+  "type": "module",
+  "license": "MIT"
+}

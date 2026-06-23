@@ -1,0 +1,363 @@
+================================================================================
+Every elementary type
+================================================================================
+
+PROGRAM P
+VAR
+  a : BOOL; b : BYTE; c : WORD; d : DWORD; e : LWORD;
+  f : SINT; g : USINT; h : INT; i : UINT; j : DINT; k : UDINT;
+  l : LINT; m : ULINT; n : REAL; o : LREAL;
+  p : TIME; q : LTIME;
+  r : DATE; s : LDATE;
+  t : TIME_OF_DAY; u : TOD; v : LTIME_OF_DAY; w : LTOD;
+  x : DATE_AND_TIME; y : DT; z : LDATE_AND_TIME; aa : LDT;
+  ab : CHAR; ac : WCHAR;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))))
+
+================================================================================
+Multi-dimensional ARRAY
+================================================================================
+
+PROGRAM P
+VAR
+  one_d : ARRAY [0..9] OF INT;
+  two_d : ARRAY [0..3, 0..3] OF REAL;
+  three_d : ARRAY [1..2, 1..3, 1..4] OF BOOL;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (array_type
+          (subrange
+            (integer_literal)
+            (integer_literal))
+          (elementary_type)))
+      (variable_declaration
+        (identifier)
+        (array_type
+          (subrange
+            (integer_literal)
+            (integer_literal))
+          (subrange
+            (integer_literal)
+            (integer_literal))
+          (elementary_type)))
+      (variable_declaration
+        (identifier)
+        (array_type
+          (subrange
+            (integer_literal)
+            (integer_literal))
+          (subrange
+            (integer_literal)
+            (integer_literal))
+          (subrange
+            (integer_literal)
+            (integer_literal))
+          (elementary_type))))))
+
+================================================================================
+STRUCT and STRUCT-of-STRUCT
+================================================================================
+
+TYPE
+  Point : STRUCT
+    x : REAL;
+    y : REAL;
+  END_STRUCT;
+  Rectangle : STRUCT
+    top_left : Point;
+    bottom_right : Point;
+    color : INT;
+  END_STRUCT;
+END_TYPE
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (type_declaration
+    (type_definition
+      (identifier)
+      (structure_type_inline
+        (structure_field
+          (identifier)
+          (elementary_type))
+        (structure_field
+          (identifier)
+          (elementary_type))))
+    (type_definition
+      (identifier)
+      (structure_type_inline
+        (structure_field
+          (identifier)
+          (identifier))
+        (structure_field
+          (identifier)
+          (identifier))
+        (structure_field
+          (identifier)
+          (elementary_type))))))
+
+================================================================================
+Enumerations
+================================================================================
+
+TYPE
+  Day : (Mon, Tue, Wed, Thu, Fri, Sat, Sun);
+  Status : (Idle := 0, Running := 1, Done := 99);
+END_TYPE
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (type_declaration
+    (type_definition
+      (identifier)
+      (enumerated_type_inline
+        (enumerator
+          (identifier))
+        (enumerator
+          (identifier))
+        (enumerator
+          (identifier))
+        (enumerator
+          (identifier))
+        (enumerator
+          (identifier))
+        (enumerator
+          (identifier))
+        (enumerator
+          (identifier))))
+    (type_definition
+      (identifier)
+      (enumerated_type_inline
+        (enumerator
+          (identifier)
+          (integer_literal))
+        (enumerator
+          (identifier)
+          (integer_literal))
+        (enumerator
+          (identifier)
+          (integer_literal))))))
+
+================================================================================
+Subrange types
+================================================================================
+
+TYPE
+  Percent : INT(0..100);
+  Voltage : REAL(-12.0..12.0);
+END_TYPE
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (type_declaration
+    (type_definition
+      (identifier)
+      (subrange_type
+        (elementary_type)
+        (integer_literal)
+        (integer_literal)))
+    (type_definition
+      (identifier)
+      (subrange_type
+        (elementary_type)
+        (real_literal)
+        (real_literal)))))
+
+================================================================================
+Generic types in function signature
+================================================================================
+
+FUNCTION abs_any : ANY_NUM
+VAR_INPUT x : ANY_NUM; END_VAR
+IF x < 0 THEN
+  abs_any := -x;
+ELSE
+  abs_any := x;
+END_IF
+END_FUNCTION
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (generic_type)
+    (var_input
+      (variable_declaration
+        (identifier)
+        (generic_type)))
+    (if_statement
+      (binary_expression
+        (identifier)
+        (integer_literal))
+      (assignment_statement
+        (identifier)
+        (unary_expression
+          (identifier)))
+      (else_clause
+        (assignment_statement
+          (identifier)
+          (identifier))))))
+
+================================================================================
+POINTER TO and REF_TO
+================================================================================
+
+PROGRAM P
+VAR
+  p : POINTER TO INT;
+  r : REF_TO Point;
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (pointer_type
+          (elementary_type)))
+      (variable_declaration
+        (identifier)
+        (reference_type
+          (identifier))))))
+
+================================================================================
+String types with explicit length
+================================================================================
+
+PROGRAM P
+VAR
+  short : STRING(20);
+  long : STRING(255);
+  wide : WSTRING(40);
+END_VAR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (string_type
+          (integer_literal)))
+      (variable_declaration
+        (identifier)
+        (string_type
+          (integer_literal)))
+      (variable_declaration
+        (identifier)
+        (string_type
+          (integer_literal))))))

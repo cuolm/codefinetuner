@@ -1,0 +1,176 @@
+================================================================================
+INTERFACE with method and property signatures
+================================================================================
+
+INTERFACE IFoo
+METHOD DoSomething : INT
+VAR_INPUT x : REAL; END_VAR
+END_METHOD
+PROPERTY State : INT
+GET END_GET
+SET END_SET
+END_PROPERTY
+END_INTERFACE
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (interface_declaration
+    (identifier)
+    (method_signature
+      (identifier)
+      (elementary_type)
+      (var_input
+        (variable_declaration
+          (identifier)
+          (elementary_type))))
+    (property_signature
+      (identifier)
+      (elementary_type)
+      (property_accessor)
+      (property_accessor))))
+
+================================================================================
+INTERFACE EXTENDS another
+================================================================================
+
+INTERFACE IBar EXTENDS IFoo, IBaz
+METHOD DoMore : BOOL
+END_METHOD
+END_INTERFACE
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (interface_declaration
+    (identifier)
+    (identifier)
+    (identifier)
+    (method_signature
+      (identifier)
+      (elementary_type))))
+
+================================================================================
+FUNCTION_BLOCK EXTENDS and IMPLEMENTS
+================================================================================
+
+FUNCTION_BLOCK Derived EXTENDS Base IMPLEMENTS IFoo, IBar
+VAR x : INT; END_VAR
+METHOD PUBLIC DoSomething : INT
+VAR_INPUT y : REAL; END_VAR
+DoSomething := x;
+END_METHOD
+PROPERTY PRIVATE State : INT
+GET State := x; END_GET
+SET x := State; END_SET
+END_PROPERTY
+END_FUNCTION_BLOCK
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_block_declaration
+    (identifier)
+    (identifier)
+    (identifier)
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (method_declaration
+      (identifier)
+      (elementary_type)
+      (var_input
+        (variable_declaration
+          (identifier)
+          (elementary_type)))
+      (assignment_statement
+        (identifier)
+        (identifier)))
+    (property_declaration
+      (identifier)
+      (elementary_type)
+      (property_accessor
+        (assignment_statement
+          (identifier)
+          (identifier)))
+      (property_accessor
+        (assignment_statement
+          (identifier)
+          (identifier))))))
+
+================================================================================
+ABSTRACT and FINAL modifiers
+================================================================================
+
+ABSTRACT FUNCTION_BLOCK BaseClass
+METHOD ABSTRACT PUBLIC Compute : REAL
+END_METHOD
+METHOD FINAL PROTECTED Helper : INT
+Helper := 0;
+END_METHOD
+END_FUNCTION_BLOCK
+
+FINAL FUNCTION_BLOCK ConcreteClass EXTENDS BaseClass
+METHOD OVERRIDE PUBLIC Compute : REAL
+Compute := 1.0;
+END_METHOD
+END_FUNCTION_BLOCK
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_block_declaration
+    (identifier)
+    (method_declaration
+      (identifier)
+      (elementary_type))
+    (method_declaration
+      (identifier)
+      (elementary_type)
+      (assignment_statement
+        (identifier)
+        (integer_literal))))
+  (function_block_declaration
+    (identifier)
+    (identifier)
+    (method_declaration
+      (identifier)
+      (elementary_type)
+      (assignment_statement
+        (identifier)
+        (real_literal)))))
+
+================================================================================
+THIS and SUPER references
+================================================================================
+
+FUNCTION_BLOCK Derived EXTENDS Base
+METHOD Init
+SUPER^.Init();
+THIS^.x := 10;
+END_METHOD
+END_FUNCTION_BLOCK
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_block_declaration
+    (identifier)
+    (identifier)
+    (method_declaration
+      (identifier)
+      (invocation_statement
+        (call_expression
+          (member_access_expression
+            (dereference_expression
+              (super_expression))
+            (identifier))
+          (argument_list)))
+      (assignment_statement
+        (member_access_expression
+          (dereference_expression
+            (this_expression))
+          (identifier))
+        (integer_literal)))))

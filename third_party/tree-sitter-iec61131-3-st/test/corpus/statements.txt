@@ -1,0 +1,418 @@
+================================================================================
+IF / ELSIF / ELSE
+================================================================================
+
+PROGRAM P
+VAR x : INT; y : INT; END_VAR
+IF x > 0 THEN
+  y := 1;
+ELSIF x = 0 THEN
+  y := 0;
+ELSIF x < -10 THEN
+  y := -1;
+ELSE
+  y := 99;
+END_IF
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (if_statement
+      (binary_expression
+        (identifier)
+        (integer_literal))
+      (assignment_statement
+        (identifier)
+        (integer_literal))
+      (elsif_clause
+        (binary_expression
+          (identifier)
+          (integer_literal))
+        (assignment_statement
+          (identifier)
+          (integer_literal)))
+      (elsif_clause
+        (binary_expression
+          (identifier)
+          (integer_literal))
+        (assignment_statement
+          (identifier)
+          (integer_literal)))
+      (else_clause
+        (assignment_statement
+          (identifier)
+          (integer_literal))))))
+
+================================================================================
+Nested IF statements
+================================================================================
+
+PROGRAM P
+VAR a, b : BOOL; c : INT; END_VAR
+IF a THEN
+  IF b THEN
+    c := 1;
+  END_IF
+END_IF
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (if_statement
+      (identifier)
+      (if_statement
+        (identifier)
+        (assignment_statement
+          (identifier)
+          (integer_literal))))))
+
+================================================================================
+CASE with single, list, and range values, plus ELSE
+================================================================================
+
+PROGRAM P
+VAR x : INT; y : INT; END_VAR
+CASE x OF
+  0:
+    y := 0;
+  1, 2, 3:
+    y := 10;
+  4..10:
+    y := 100;
+  ELSE
+    y := -1;
+END_CASE
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (case_statement
+      (identifier)
+      (case_clause
+        (case_value
+          (integer_literal))
+        (assignment_statement
+          (identifier)
+          (integer_literal)))
+      (case_clause
+        (case_value
+          (integer_literal))
+        (case_value
+          (integer_literal))
+        (case_value
+          (integer_literal))
+        (assignment_statement
+          (identifier)
+          (integer_literal)))
+      (case_clause
+        (case_value
+          (subrange
+            (integer_literal)
+            (integer_literal)))
+        (assignment_statement
+          (identifier)
+          (integer_literal)))
+      (else_clause
+        (assignment_statement
+          (identifier)
+          (integer_literal))))))
+
+================================================================================
+FOR loop with optional BY step
+================================================================================
+
+PROGRAM P
+VAR i : INT; sum : INT; END_VAR
+FOR i := 1 TO 10 DO
+  sum := sum + i;
+END_FOR
+FOR i := 10 TO 1 BY -1 DO
+  sum := sum + i;
+END_FOR
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (for_statement
+      (identifier)
+      (integer_literal)
+      (integer_literal)
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (identifier))))
+    (for_statement
+      (identifier)
+      (integer_literal)
+      (integer_literal)
+      (integer_literal)
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (identifier))))))
+
+================================================================================
+WHILE and REPEAT loops
+================================================================================
+
+PROGRAM P
+VAR i : INT; flag : BOOL; END_VAR
+WHILE i < 10 DO
+  i := i + 1;
+END_WHILE
+REPEAT
+  i := i - 1;
+UNTIL i = 0 END_REPEAT
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (while_statement
+      (binary_expression
+        (identifier)
+        (integer_literal))
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (integer_literal))))
+    (repeat_statement
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (integer_literal)))
+      (binary_expression
+        (identifier)
+        (integer_literal)))))
+
+================================================================================
+EXIT, CONTINUE, RETURN
+================================================================================
+
+FUNCTION sum_until_zero : INT
+VAR_INPUT arr : ARRAY [1..100] OF INT; END_VAR
+VAR i : INT; total : INT; END_VAR
+FOR i := 1 TO 100 DO
+  IF arr[i] = 0 THEN
+    EXIT;
+  END_IF
+  IF arr[i] < 0 THEN
+    CONTINUE;
+  END_IF
+  total := total + arr[i];
+END_FOR
+RETURN total;
+END_FUNCTION
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_declaration
+    (identifier)
+    (elementary_type)
+    (var_input
+      (variable_declaration
+        (identifier)
+        (array_type
+          (subrange
+            (integer_literal)
+            (integer_literal))
+          (elementary_type))))
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (for_statement
+      (identifier)
+      (integer_literal)
+      (integer_literal)
+      (if_statement
+        (binary_expression
+          (index_expression
+            (identifier)
+            (identifier))
+          (integer_literal))
+        (exit_statement))
+      (if_statement
+        (binary_expression
+          (index_expression
+            (identifier)
+            (identifier))
+          (integer_literal))
+        (continue_statement))
+      (assignment_statement
+        (identifier)
+        (binary_expression
+          (identifier)
+          (index_expression
+            (identifier)
+            (identifier)))))
+    (return_statement
+      (identifier))))
+
+================================================================================
+Reference assignment (REF=)
+================================================================================
+
+PROGRAM P
+VAR a : INT; ref_a : REF_TO INT; END_VAR
+ref_a REF= a;
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type))
+      (variable_declaration
+        (identifier)
+        (reference_type
+          (elementary_type))))
+    (reference_assignment_statement
+      (identifier)
+      (ref_assign)
+      (identifier))))
+
+================================================================================
+Empty statement (bare semicolon)
+================================================================================
+
+PROGRAM P
+;
+;
+;
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (empty_statement)
+    (empty_statement)
+    (empty_statement)))
+
+================================================================================
+Function-block invocation as statement
+================================================================================
+
+PROGRAM P
+VAR fb : MyFB; END_VAR
+fb(in1 := 5, in2 := 10);
+fb.method1();
+END_PROGRAM
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (program_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (identifier)))
+    (invocation_statement
+      (call_expression
+        (identifier)
+        (argument_list
+          (named_argument
+            (identifier)
+            (integer_literal))
+          (named_argument
+            (identifier)
+            (integer_literal)))))
+    (invocation_statement
+      (call_expression
+        (member_access_expression
+          (identifier)
+          (identifier))
+        (argument_list)))))
+
+================================================================================
+Missing END_IF localizes to the IF (error recovery)
+================================================================================
+
+FUNCTION_BLOCK FB_Test
+VAR x : INT; END_VAR
+IF x > 0 THEN
+  x := 1;
+END_FUNCTION_BLOCK
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (function_block_declaration
+    (identifier)
+    (var_block
+      (variable_declaration
+        (identifier)
+        (elementary_type)))
+    (if_statement
+      (binary_expression
+        (identifier)
+        (integer_literal))
+      (assignment_statement
+        (identifier)
+        (integer_literal))
+      (MISSING "END_IF"))))
