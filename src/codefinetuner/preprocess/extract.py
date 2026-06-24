@@ -13,11 +13,11 @@ from .config import Config
 logger = logging.getLogger(__name__)
 
 
-def get_custom_tree_sitter_parser(tree_sitter_lib_path: Path, data_language: str) -> ts.Parser:
-    if not tree_sitter_lib_path.exists():
-        raise FileNotFoundError(f"Library not found: {tree_sitter_lib_path}")
+def get_custom_tree_sitter_parser(tree_sitter_parser_path: Path, data_language: str) -> ts.Parser:
+    if not tree_sitter_parser_path.exists():
+        raise FileNotFoundError(f"Library not found: {tree_sitter_parser_path}")
     try:
-        lib = ctypes.CDLL(str(tree_sitter_lib_path)) # Load C Dynamic Link Library, makes all the public C functions inside the .dylib file available to be called from the Python script.
+        lib = ctypes.CDLL(str(tree_sitter_parser_path)) # Load C Dynamic Link Library, makes all the public C functions inside the .dylib file available to be called from the Python script.
         entry_point_func_name = f"tree_sitter_{data_language}"
         lang_func = getattr(lib, entry_point_func_name) # Retrieves the entry point function of the loaded lib
         lang_func.restype = ctypes.c_void_p # Tells ctypes that this function returns a C-style pointer (void *)

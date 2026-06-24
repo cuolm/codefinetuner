@@ -281,6 +281,37 @@
       "finally_clause",
       "decorated_definition"
     ]
+  },
+  "iec61131_3_st": {
+    "block_types": [
+      "function_block_declaration",
+      "function_declaration",
+      "program_declaration",
+      "method_declaration",
+      "structure_type_inline",
+      "enumerated_type_inline"
+    ],
+    "subblock_types": [
+      "var_block",
+      "var_input",
+      "var_output",
+      "var_in_out",
+      "var_temp",
+      "var_external",
+      "variable_declaration",
+      "assignment_statement",
+      "invocation_statement",
+      "if_statement",
+      "case_statement",
+      "case_clause",
+      "for_statement",
+      "while_statement",
+      "repeat_statement",
+      "return_statement",
+      "exit_statement",
+      "structure_field",
+      "enumerator"
+    ]
   }
 }
 
