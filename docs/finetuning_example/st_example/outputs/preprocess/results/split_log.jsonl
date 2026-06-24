@@ -1,0 +1,11 @@
+{
+    "train": [
+        "data/PLC-lang-oscat/train/train.st"
+    ],
+    "eval": [
+        "data/PLC-lang-oscat/eval/eval.st"
+    ],
+    "test": [
+        "data/PLC-lang-oscat/test/test.st"
+    ]
+}
