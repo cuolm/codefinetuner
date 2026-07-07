@@ -24,6 +24,8 @@ preprocess:
   min_middle_tokens_length: 10
   max_middle_tokens_length: 200
   fim_examples_per_subblock_ratio: 1
+  rand_to_ast_fim_examples_ratio: 0.0  # 0 = no random fim examples are created
+  rand_examples_min_prefix_suffix_tokens_length: 10
   tokenizer_batch_size: 32
   raw_data_path: data/PLC-lang-oscat  # null: defaults to <workspace_path>/data
   tree_sitter_parser_path: third_party/tree-sitter-iec61131-3-st/libtree-sitter-iec61131-3-st.dylib # null: uses tree_sitter_language_pack parser
