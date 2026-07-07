@@ -149,10 +149,10 @@ def test_get_code_blocks_from_auto_split(config, mocker):
     config.train_ratio = 0.4
     config.eval_ratio = 0.3
     config.test_ratio = 0.3
-    train_iter, eval_iter, test_iter = get_code_blocks_from_auto_split(config)
-    train_blocks = list(train_iter)
-    eval_blocks = list(eval_iter)
-    test_blocks = list(test_iter)
+    split_result = get_code_blocks_from_auto_split(config)
+    train_blocks = list(split_result.train_iter)
+    eval_blocks = list(split_result.eval_iter)
+    test_blocks = list(split_result.test_iter)
     assert len(train_blocks) == 5
     assert len(eval_blocks) == 5
     assert len(test_blocks) == 5
@@ -195,10 +195,10 @@ def test_get_filtered_paths_excludes_non_c_files(config):
 def test_get_code_blocks_from_manual_split_returns_three_iterators(config, mocker):
     mocker.patch("codefinetuner.preprocess.extract._log_split_paths")
     config.raw_data_path = tests_path / "data"
-    train_iter, eval_iter, test_iter = get_code_blocks_from_manual_split(config)
-    train_blocks = list(train_iter)
-    eval_blocks = list(eval_iter)
-    test_blocks = list(test_iter)
+    split_result = get_code_blocks_from_manual_split(config)
+    train_blocks = list(split_result.train_iter)
+    eval_blocks = list(split_result.eval_iter)
+    test_blocks = list(split_result.test_iter)
     assert len(train_blocks) > 0
     assert len(eval_blocks) > 0
     assert len(test_blocks) > 0

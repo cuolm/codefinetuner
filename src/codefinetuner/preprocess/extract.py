@@ -2,7 +2,7 @@ import ctypes
 import json
 import logging
 from pathlib import Path
-from typing import Iterator, Tuple
+from typing import Iterator, Tuple, NamedTuple
 
 import tree_sitter as ts
 from tree_sitter_language_pack import get_parser
@@ -11,6 +11,15 @@ from .config import Config
 
 
 logger = logging.getLogger(__name__)
+
+
+class SplitResult(NamedTuple):
+    train_iter: Iterator[Tuple[bytes, ts.Node]]
+    eval_iter: Iterator[Tuple[bytes, ts.Node]]
+    test_iter: Iterator[Tuple[bytes, ts.Node]]
+    train_paths: list[Path]
+    eval_paths: list[Path]
+    test_paths: list[Path]
 
 
 def get_custom_tree_sitter_parser(tree_sitter_parser_path: Path, data_language: str) -> ts.Parser:
@@ -124,7 +133,7 @@ def get_code_blocks_from_paths(config: Config, file_paths: list[Path]) -> Iterat
             yield block  # yields one block at the time 
 
 
-def get_code_blocks_from_auto_split(config: Config) -> Tuple[Iterator[Tuple[bytes, ts.Node]], Iterator[Tuple[bytes, ts.Node]], Iterator[Tuple[bytes, ts.Node]]]:
+def get_code_blocks_from_auto_split(config: Config) -> SplitResult:
     """
     Auto-split source code files from /data into train/eval/test paths, then extract top-level 
     code blocks such as functions from each split.
@@ -136,7 +145,16 @@ def get_code_blocks_from_auto_split(config: Config) -> Tuple[Iterator[Tuple[byte
     train_code_blocks_iter = get_code_blocks_from_paths(config, train_file_paths)
     eval_code_blocks_iter = get_code_blocks_from_paths(config, eval_file_paths)  
     test_code_blocks_iter =  get_code_blocks_from_paths(config, test_file_paths)
-    return train_code_blocks_iter, eval_code_blocks_iter, test_code_blocks_iter 
+
+    result = SplitResult(
+        train_iter=train_code_blocks_iter,
+        eval_iter=eval_code_blocks_iter ,
+        test_iter=test_code_blocks_iter,
+        train_paths=train_file_paths,
+        eval_paths=eval_file_paths,
+        test_paths=test_file_paths
+    )
+    return result
 
 
 def _check_required_directories(root_path: Path, required_dirs: list[str]) -> None:
@@ -167,7 +185,7 @@ def _get_filtered_paths(config: Config, directory: Path) -> list[Path]:
     return filtered_paths
 
 
-def get_code_blocks_from_manual_split(config: Config) -> Tuple[Iterator[Tuple[bytes, ts.Node]], Iterator[Tuple[bytes, ts.Node]], Iterator[Tuple[bytes, ts.Node]]]:
+def get_code_blocks_from_manual_split(config: Config) -> SplitResult:
     """
     Extract top-level code blocks such as functions from manually split train/eval/test files.
     """
@@ -181,4 +199,13 @@ def get_code_blocks_from_manual_split(config: Config) -> Tuple[Iterator[Tuple[by
     train_code_blocks_iter = get_code_blocks_from_paths(config, train_file_paths)
     eval_code_blocks_iter = get_code_blocks_from_paths(config, eval_file_paths) 
     test_code_blocks_iter = get_code_blocks_from_paths(config, test_file_paths) 
-    return train_code_blocks_iter, eval_code_blocks_iter, test_code_blocks_iter
+
+    result = SplitResult(
+        train_iter=train_code_blocks_iter,
+        eval_iter=eval_code_blocks_iter ,
+        test_iter=test_code_blocks_iter,
+        train_paths=train_file_paths,
+        eval_paths=eval_file_paths,
+        test_paths=test_file_paths
+    )
+    return result

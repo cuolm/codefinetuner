@@ -1,36 +1,38 @@
-# Shared across all stages 
+# shared across all stages 
 globals: &globals
-  workspace_path: null  # null: defaults to current working directory (CWD)
-  model_name: "unsloth/Qwen2.5-Coder-3B" 
+  workspace_path: null  # null: defaults to current working directory (cwd)
+  model_name: "unsloth/qwen2.5-coder-3b" 
   fim_prefix_token: "<|fim_prefix|>"
   fim_middle_token: "<|fim_middle|>"
   fim_suffix_token: "<|fim_suffix|>"
   fim_pad_token: "<|fim_pad|>"
   eos_token: "<|endoftext|>"
   label_pad_token_id: -100
-  max_token_sequence_length: 512 # 1024
-  data_language: "iec61131_3_st"
-  data_extensions: [".st"]
-  use_unsloth: False
+  max_token_sequence_length: 1024
+  data_language: "c"
+  data_extensions: [".c"]
+  use_unsloth: false
 
-# Preprocess stage
+# preprocess stage
 preprocess:
   <<: *globals
-  split_mode: "manual"
+  split_mode: "auto"
   train_ratio: 0.8  # ignored when split mode manual
   eval_ratio: 0.1  # ignored when split mode manual  
   test_ratio: 0.1  # ignored when split mode manual
   max_code_blocks_ast_depth: 20
-  min_middle_tokens_length: 10
-  max_middle_tokens_length: 200
-  fim_examples_per_subblock_ratio: 1
+  min_middle_tokens_length: 16
+  max_middle_tokens_length: 256
+  fim_examples_per_subblock_ratio: 0.2
+  rand_to_ast_fim_examples_ratio: 1.0 
+  rand_examples_min_prefix_suffix_tokens_length: 10
   tokenizer_batch_size: 32
-  raw_data_path: data/PLC-lang-oscat  # null: defaults to <workspace_path>/data
-  tree_sitter_parser_path: third_party/tree-sitter-iec61131-3-st/libtree-sitter-iec61131-3-st.dylib # null: uses tree_sitter_language_pack parser
+  raw_data_path: data/tinyusb/examples # null: defaults to <workspace_path>/data
+  tree_sitter_parser_path: null  # uses tree_sitter_language_pack parser
   tree_sitter_definitions_path: null  # null: uses package internal tree sitter definitions 
   rng_seed: 0
 
-# Finetune stage 
+# finetune stage 
 finetune:
   <<: *globals
   model_attn_implementation: "sdpa"
@@ -45,26 +47,26 @@ finetune:
   trainer_num_train_epochs: 1
   trainer_per_device_train_batch_size: 1
   trainer_per_device_eval_batch_size: 1 
-  trainer_gradient_accumulation_steps: 16 
+  trainer_gradient_accumulation_steps: 8 
   trainer_learning_rate: 5e-5
   trainer_weight_decay: 0.01
   trainer_max_grad_norm: 1.0
   trainer_lr_scheduler_type: "cosine"
-  trainer_warmup_steps: 10
+  trainer_warmup_steps: 20
   trainer_gradient_checkpointing: true
   trainer_logging_steps: 10
   trainer_eval_strategy: "steps"
-  trainer_eval_steps: 10
+  trainer_eval_steps: 50
   trainer_save_strategy: "steps"
-  trainer_save_steps: 10
+  trainer_save_steps: 50
   trainer_logging_strategy: "steps"
   dataset_shuffle_buffer_size: 50000
   dataset_shuffle_seed: 0
 
-# Evaluate stage
+# evaluate stage
 evaluate:
   <<: *globals
-  benchmark_sample_size: 500 
+  benchmark_sample_size: 100 
   benchmark_shuffle_buffer_size: 10000000
   benchmark_shuffle_seed: 42
   generation_checkpoint: "pipeline"  # "pipeline" -> selected checkpoint from finetune stage, "checkpoint-name" -> specific checkpoint
@@ -85,6 +87,6 @@ evaluate:
   plot_only: false
   benchmark_use_existing_dataset: false
 
-# Convert stage
+# convert stage
 convert:
   <<: *globals

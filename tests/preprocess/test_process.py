@@ -19,7 +19,10 @@ from codefinetuner.preprocess.process import (
     _filter_tokenized_total_length,
     _filter_tokenized_middle_length,
     _save_tokenized_batch_as_jsonl,
-    tokenize_filter_and_save 
+    tokenize_filter_and_save,
+    _get_chunks_from_paths,
+    _generate_random_fim_examples,
+    augment_with_random_fim_examples 
 )
 
 # --- Fixtures ---
@@ -41,11 +44,6 @@ def tokenizer(config) -> AutoTokenizer:
 
 @pytest.fixture
 def test_code_block(config):
-    """
-    Returns a specific, hardcoded code block (bytes and AST node) derived from 
-    a known example snippet, bypassing the entire data loading pipeline for speed/determinism.
-    """
-    # Define the known good source code *inside* the fixture scope
     source_code_utf8 = textwrap.dedent("""
         int calculate_sum(int n) {
             if (n <= 0) {
@@ -145,6 +143,7 @@ def test_generate_fim_examples_middle_tokens_length(config, test_code_block):
         assert len(middle_content) >= min_num_of_middle_bytes
         assert len(middle_content) <= max_num_of_middle_bytes
 
+
 # --- create_fim_examples ---
 
 def test_create_fim_examples(config, test_code_block):
@@ -236,7 +235,7 @@ def test_filter_tokenized_middle_length_removes_out_of_bounds(config, tokenizer)
     assert len(result["labels"]) == 0
 
 
-def test_filter_tokenized_middle_length_drops_missing_token(config, tokenizer, caplog):
+def test_filter_tokenized_middle_length_drops_missing_token(config, tokenizer):
     config.min_middle_tokens_length = 1
     config.max_middle_tokens_length = 10
     
@@ -305,12 +304,131 @@ def test_tokenize_filter_and_save(tmp_path, config, tokenizer):
     example = b'<|fim_prefix|>\nint calculate_sum(int n) {\n    <|fim_suffix|>}\n    return n + calculate_sum(n - 1);\n}\n<|fim_middle|> if (n <= 0) {\n        return 0;\n    <|endoftext|>'
     example_iter = iter([example])
 
-    tokenize_filter_and_save(config, tmp_file_path, example_iter, tokenizer)
+    count = tokenize_filter_and_save(config, tmp_file_path, example_iter, tokenizer)
 
+    assert count == 1
     assert tmp_file_path.exists()
     lines = tmp_file_path.read_text(encoding="utf-8").strip().splitlines()
     first_line_example = json.loads(lines[0])
     assert "input_ids" in first_line_example
     assert "attention_mask" in first_line_example
     assert "labels" in first_line_example
+
+
+# --- _get_chunks_from_paths ---
+
+def test_get_chunks_from_paths_yields_correct_sizes(tmp_path, config):
+    config.max_token_sequence_length = 10
+    bytes_per_token_ratio = 2.0
+    # Expected chunk_size_bytes = int(10 * 2.0 * 1.2) = 24
     
+    test_file = tmp_path / "test.c"
+    test_file.write_bytes(b"a" * 50)  # 50 bytes total
+
+    chunks = list(_get_chunks_from_paths(config, [test_file], bytes_per_token_ratio))
+
+    assert len(chunks) == 2  # Range: 0-24, 24-48
+    assert len(chunks[0]) == 24
+    assert len(chunks[1]) == 24
+
+    
+def test_get_chunks_from_paths_skips_invalid_utf8(tmp_path, config):
+    config.max_token_sequence_length = 100
+    bytes_per_token_ratio = 1.0
+
+    invalid_file = tmp_path / "invalid.c"
+    invalid_file.write_bytes(b"\x80\x81\x82")
+
+    chunks = list(_get_chunks_from_paths(config, [invalid_file], bytes_per_token_ratio))
+
+    assert len(chunks) == 0
+
+
+# --- _generate_random_fim_examples ---
+
+def test_generate_random_fim_examples_contains_all_special_tokens(config, tokenizer):
+    config.rand_examples_per_chunk = 2
+    config.min_middle_tokens_length = 2
+    config.max_middle_tokens_length = 4
+    config.rand_examples_min_prefix_suffix_tokens_length = 2
+
+    chunk_tokenized = list(range(1000, 1020))  # 20 mock tokens, start at 1000 so no overlap with special token IDs
+    examples = _generate_random_fim_examples(config, tokenizer, chunk_tokenized)
+
+    assert len(examples) == 2
+    
+    fim_prefix_id = tokenizer.convert_tokens_to_ids(config.fim_prefix_token)
+    fim_suffix_id = tokenizer.convert_tokens_to_ids(config.fim_suffix_token)
+    fim_middle_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
+    eos_id = tokenizer.convert_tokens_to_ids(config.eos_token)
+
+    for example in examples:
+        assert example[0] == fim_prefix_id
+        assert fim_suffix_id in example
+        assert fim_middle_id in example
+        assert example[-1] == eos_id
+
+
+def test_generate_random_fim_examples_skips_small_chunks(config, tokenizer):
+    config.rand_examples_per_chunk = 1
+    config.min_middle_tokens_length = 10
+    config.rand_examples_min_prefix_suffix_tokens_length = 5
+
+    # 10 tokens total, needs at least min_middle (10) + 2*min_prefix_suffix (10) = 20 tokens
+    chunk_tokenized = list(range(1000, 1010))  # start at 1000 so no overlap with special token IDs
+    examples = _generate_random_fim_examples(config, tokenizer, chunk_tokenized)
+
+    assert len(examples) == 0
+
+
+def test_get_chunks_from_paths_file_smaller_than_chunk_size(tmp_path, config):
+    config.max_token_sequence_length = 100
+    bytes_per_token_ratio = 2.0
+    # expected chunk_size_bytes = int(100 * 2.0 * 1.2) = 240
+    
+    test_file = tmp_path / "small.c"
+    test_file.write_bytes(b"int a = 1;")  # 10 bytes
+
+    chunks = list(_get_chunks_from_paths(config, [test_file], bytes_per_token_ratio))
+
+    assert len(chunks) == 1
+    assert chunks[0] == b"int a = 1;"
+
+
+def test_get_chunks_from_paths_skips_nonexistent_file(config):
+    nonexistent_file = pathlib.Path("/does/not/exist/file.c")
+    
+    chunks = list(_get_chunks_from_paths(config, [nonexistent_file], bytes_per_token_ratio=1.0))
+    
+    assert len(chunks) == 0
+
+
+# --- augment_with_random_fim_examples ---
+
+def test_augment_with_random_fim_examples(tmp_path, config, tokenizer):
+    test_file = tmp_path / "test_source.c"
+    test_file.write_text("int main() { return 0; }\n" * 50, encoding="utf-8")
+    
+    save_path = tmp_path / "random_examples.jsonl"
+    
+    config.rand_examples_per_chunk = 2
+    config.min_middle_tokens_length = 2
+    config.max_middle_tokens_length = 5
+    config.rand_examples_min_prefix_suffix_tokens_length = 2
+    config.tokenizer_batch_size = 2
+    config.max_token_sequence_length = 20
+
+    bytes_per_token_ratio = 2.0
+    num_requested = 3
+
+    augment_with_random_fim_examples(config, tokenizer, [test_file], bytes_per_token_ratio, num_requested, save_path)
+
+    assert save_path.exists()
+    lines = save_path.read_text(encoding="utf-8").strip().splitlines()
+    
+    assert len(lines) == num_requested
+
+    first_example = json.loads(lines[0])
+    assert "input_ids" in first_example
+    assert "attention_mask" in first_example
+    assert "labels" in first_example
