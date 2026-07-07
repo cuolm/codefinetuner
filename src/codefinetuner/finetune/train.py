@@ -109,7 +109,8 @@ def train_lora_model(
     if checkpoint == "last":
         trainer.train(resume_from_checkpoint=True)
     elif checkpoint is not None:
-        trainer.train(resume_from_checkpoint=checkpoint) 
+        checkpoint_path = config.trainer_checkpoints_dir_path / checkpoint
+        trainer.train(resume_from_checkpoint=checkpoint_path) 
     else:
         trainer.train()  # train from scratch
 
