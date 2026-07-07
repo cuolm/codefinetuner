@@ -32,9 +32,12 @@ class Config:
     eval_ratio: float = 0.1
     test_ratio: float = 0.1
     max_code_blocks_ast_depth: int = 2  # depth 1 is root, 2 includes child nodes (e.g. functions)
-    min_middle_tokens_length: int = 20  # used with estimated bytes_per_token_ratio to convert bytes to tokens, final token count is thus not exact 
-    max_middle_tokens_length: int = 200  # used with estimated bytes_per_token_ratio to convert bytes to tokens, final token count is thus not exact
-    fim_examples_per_subblock_ratio: float = 1.0  # 1.0 = all fim examples of a subblock are extracted, 0.5 = onls 50% of fim examples of a subblock are extracted
+    min_middle_tokens_length: int = 16  # ast: used with estimated bytes_per_token_ratio to convert bytes to tokens, final token count is thus not exact in ast fim examples 
+    max_middle_tokens_length: int = 256  # ast: used with estimated bytes_per_token_ratio to convert bytes to tokens, final token count is thus not exact in ast fim examples
+    fim_examples_per_subblock_ratio: float = 1.0  # 1.0 = all fim examples of a subblock are extracted, 0.5 = only 50% of fim examples of a subblock are extracted
+    rand_to_ast_fim_examples_ratio: float = 0.1  # 1.0 = datasets augmented with the same amount random examples as there are ast examples, 0.1 = augmented with only 10% of the amount of ast examples 
+    rand_examples_min_prefix_suffix_tokens_length: int = 10
+    rand_examples_per_chunk: int = 10  # increase if the pool lacks enough random examples to satisfy the rand_to_ast_fim_examples_ratio, trade-off: higher values increase pool size but add generation overhead. 
     tokenizer_batch_size: int = 32
     rng_seed: int = 0 
 

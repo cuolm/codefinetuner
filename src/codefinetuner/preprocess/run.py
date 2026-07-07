@@ -7,7 +7,7 @@ from transformers import AutoTokenizer
 
 from .config import Config
 from .extract import get_code_blocks_from_auto_split, get_code_blocks_from_manual_split
-from .process import create_fim_examples, estimate_bytes_per_token_ratio, tokenize_filter_and_save 
+from .process import create_fim_examples, estimate_bytes_per_token_ratio, tokenize_filter_and_save, augment_with_random_fim_examples
 from .analyze import analyze_and_plot_datasets
 
 
@@ -115,10 +115,10 @@ def run(config: Config) -> None:
 
     if config.split_mode == "auto":
         logger.info("Using auto-generated dataset split.")
-        train_code_blocks_iter, eval_code_blocks_iter, test_code_blocks_iter = get_code_blocks_from_auto_split(config) 
+        split_result= get_code_blocks_from_auto_split(config) 
     else: # config.split_mode == "manual":
         logger.info("Using manual dataset split from directories.")
-        train_code_blocks_iter, eval_code_blocks_iter, test_code_blocks_iter = get_code_blocks_from_manual_split(config) 
+        split_result = get_code_blocks_from_manual_split(config) 
 
     tokenizer = AutoTokenizer.from_pretrained(config.model_name)
     _validate_and_configure_tokenizer(config, tokenizer)
@@ -126,13 +126,20 @@ def run(config: Config) -> None:
     bytes_per_token_ratio = estimate_bytes_per_token_ratio(config, tokenizer, number_of_code_blocks=20000)
     logger.info(f"Estimated bytes_per_token_ratio: {bytes_per_token_ratio}")
 
-    train_fim_examples_iter= create_fim_examples(config, train_code_blocks_iter, bytes_per_token_ratio)
-    eval_fim_examples_iter = create_fim_examples(config, eval_code_blocks_iter, bytes_per_token_ratio)
-    test_fim_examples_iter = create_fim_examples(config, test_code_blocks_iter, bytes_per_token_ratio)
+    train_fim_examples_iter= create_fim_examples(config, split_result.train_iter, bytes_per_token_ratio)
+    eval_fim_examples_iter = create_fim_examples(config, split_result.eval_iter, bytes_per_token_ratio)
+    test_fim_examples_iter = create_fim_examples(config, split_result.test_iter, bytes_per_token_ratio)
     
-    tokenize_filter_and_save(config, config.train_dataset_path, train_fim_examples_iter, tokenizer)
-    tokenize_filter_and_save(config, config.eval_dataset_path, eval_fim_examples_iter, tokenizer)
-    tokenize_filter_and_save(config, config.test_dataset_path, test_fim_examples_iter, tokenizer)
+    num_ast_train_examples = tokenize_filter_and_save(config, config.train_dataset_path, train_fim_examples_iter, tokenizer)
+    num_ast_eval_examples = tokenize_filter_and_save(config, config.eval_dataset_path, eval_fim_examples_iter, tokenizer)
+    num_ast_test_examples = tokenize_filter_and_save(config, config.test_dataset_path, test_fim_examples_iter, tokenizer)
+
+    num_rand_train_examples = int(num_ast_train_examples * config.rand_to_ast_fim_examples_ratio)
+    augment_with_random_fim_examples(config, tokenizer, split_result.train_paths, bytes_per_token_ratio, num_rand_train_examples, config.train_dataset_path)
+    num_rand_eval_examples = int(num_ast_eval_examples * config.rand_to_ast_fim_examples_ratio)
+    augment_with_random_fim_examples(config, tokenizer, split_result.eval_paths, bytes_per_token_ratio, num_rand_eval_examples, config.eval_dataset_path)
+    num_rand_test_examples = int(num_ast_test_examples * config.rand_to_ast_fim_examples_ratio)
+    augment_with_random_fim_examples(config, tokenizer, split_result.test_paths, bytes_per_token_ratio, num_rand_test_examples, config.test_dataset_path)
 
     fim_middle_token_id = tokenizer.convert_tokens_to_ids(config.fim_middle_token)
     eos_token_id = tokenizer.convert_tokens_to_ids(config.eos_token)

@@ -29,9 +29,12 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `eval_ratio` | float | `0.1` | Validation set ratio (used in `auto` split). |
 | `test_ratio` | float | `0.1` | Test set ratio (used in `auto` split). |
 | `max_code_blocks_ast_depth` | int | `2` | Tree-Sitter AST depth limit for block extraction. Depth 1 is root, 2 includes child nodes (e.g. functions). |
-| `min_middle_tokens_length` | int | `20` | Minimum tokens required in the FIM "middle" section of an example. |
-| `max_middle_tokens_length` | int | `200` | Maximum tokens allowed in the FIM "middle" section of an example. |
+| `min_middle_tokens_length` | int | `16` | Minimum tokens required in the FIM "middle" section of an example. |
+| `max_middle_tokens_length` | int | `256` | Maximum tokens allowed in the FIM "middle" section of an example. |
 | `fim_examples_per_subblock_ratio` | float | `1.0` | Number of FIM examples generated per subblock.  1.0 = all FIM examples of a subblock are extracted, 0.5 = only 50% are extracted |
+| `rand_to_ast_fim_examples_ratio` | float | `1.0` | Ratio of random FIM examples to AST-based FIM examples. 1.0 = an equal amount of random and AST examples are generated. |
+| `rand_examples_min_prefix_suffix_tokens_length` | int | `10` | Minimum tokens required in both the prefix and suffix sections of a random FIM example. |
+| `rand_examples_per_chunk` | int | `10` | Number of random FIM examples generated per code chunk. Increase this value if you do not get enough random examples to satisfy your `rand_to_ast_fim_examples_ratio`. Trade-off: higher values add generation overhead and reduce processing speed. |
 | `tokenizer_batch_size` | int | `32` | Batch size for the tokenizer. The number of examples processed simultaneously by the tokenizer to improve throughput. |
 | `raw_data_path` | str/null | `"data"` | Location of source code files used to generate the datasets. `null` defaults to `<workspace>/data`. |
 | `tree_sitter_parser_path` | str/null | `null` | Path to custom `.so`/`.dylib` parser file. |
@@ -86,7 +89,6 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `generation_do_sample` | bool | `false` | Enables probabilistic sampling. If `false`, the model uses greedy decoding (picking only the top token) and `generation_temperature` and `generation_top_p` are ignored.|
 | `generation_temperature` | float | `0.7` | Probability smoothing factor. Values < 1.0 make the model more confident; > 1.0 make it more random. Only active when `generation_do_sample` is `true`.|
 | `generation_top_p` | float | `0.95` | Cumulative probability threshold for nucleus sampling. Limits choices to the most likely tokens totaling 95% probability. Only active when `generation_do_sample` is `true`.|
-| `codebleu_language` | str | `"c"` | Forces the CodeBLEU parser to use a specific language's grammar rules. |
 | `codebleu_ngram_weight` | float | `0.25` | Standard token match. Measures how many exact words or symbols match the ground truth, treating every character (like `;` or `sum`) with equal importance. |
 | `codebleu_weighted_ngram_weight` | float | `0.25` | Keyword-based scoring. Gives higher points for correctly predicting programming keywords (like `if`, `while`, `return`, `int`) than for standard symbols, ensuring the score reflects the model's grasp of the code's logic. |
 | `codebleu_syntax_ast_weight` | float | `0.25` | Structural correctness. Uses an Abstract Syntax Tree (AST) to check if the code "shape" is correct, even if variable names differ. Ensures the code is grammatically valid for the target language. |
