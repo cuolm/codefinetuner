@@ -1,6 +1,7 @@
 import argparse
 import math
 import logging.config
+import json
 import shutil
 import sys
 from typing import Tuple
@@ -103,22 +104,34 @@ def _ensure_clean_checkpoint_dir(config: Config) -> None:
         logger.info(f"Starting fresh training. Existing checkpoints in {checkpoints_dir} are preserved.")
 
 
-def load_datasets(config: Config) -> Tuple[IterableDataset, IterableDataset]:
-    # Define the expected schema/features of datasets.
-    # Use 'int32' which the datasets library and pytorch map correctly to int tensors.
-    dataset_features = Features({
-        'input_ids': Sequence(feature=Value(dtype='int32')),
-        'attention_mask': Sequence(feature=Value(dtype='int32')),
-        'labels': Sequence(feature=Value(dtype='int32')),
-    })
+def _get_num_of_train_examples_to_skip(config: Config) -> int:
+    """Calculates how many train examples to skip to resume streaming training correctly."""
+    checkpoint = config.trainer_resume_from_checkpoint
+    if checkpoint is None:
+        return 0
 
-    # Enable streaming mode to load the dataset as an iterator.
-    # This allows processing data samples on-the-fly without downloading or loading the entire dataset into memory.
-    # https://huggingface.co/docs/datasets/stream
-    train_dataset = load_dataset("json", data_files=str(config.train_dataset_path), features=dataset_features, streaming=True)["train"]
-    train_dataset = train_dataset.shuffle(buffer_size=config.dataset_shuffle_buffer_size, seed=config.dataset_shuffle_seed)  # take up to suffle_buffer_size examples and randomly shuffle them
-    eval_dataset = load_dataset("json", data_files=str(config.eval_dataset_path), features=dataset_features, streaming=True)["train"]
-    return train_dataset, eval_dataset 
+    if checkpoint == "last":
+        all_checkpoints = list(config.trainer_checkpoints_dir_path.glob("checkpoint-*"))
+        if not all_checkpoints:
+            raise FileNotFoundError(f"resume='last' but no checkpoints found in {config.trainer_checkpoints_dir_path}")
+        checkpoint_path = max(all_checkpoints, key=lambda p: int(p.name.split("-")[-1]))
+    else:
+        checkpoint_path = config.trainer_checkpoints_dir_path / checkpoint
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+
+    state_path = checkpoint_path / "trainer_state.json"
+    if not state_path.exists():
+        raise FileNotFoundError(f"trainer_state.json missing in {checkpoint_path}, cannot compute resume offset")
+
+    with state_path.open("r", encoding="utf-8") as f:
+        state = json.load(f)
+
+    global_step = state["global_step"]
+    effective_batch_size = config.trainer_per_device_train_batch_size * config.trainer_gradient_accumulation_steps
+    samples_to_skip = global_step * effective_batch_size
+    logger.info(f"Resuming: skipping {samples_to_skip} train examples ({global_step} steps already done)")
+    return samples_to_skip
 
 
 def _get_dataset_length(path: Path) -> int:
@@ -153,16 +166,38 @@ def _calculate_max_steps(config, train_dataset_length) -> int:
     max_steps = steps_per_epoch * config.trainer_num_train_epochs
     logger.debug(f"Calculated training schedule: {max_steps} total steps ({steps_per_epoch} steps/epoch for {config.trainer_num_train_epochs} epochs)")
     return max_steps
+
+
+def load_datasets(config: Config, num_of_train_examples_to_skip: int) -> Tuple[IterableDataset, IterableDataset]:
+    # Define the expected schema/features of datasets.
+    # Use int32 which the datasets library and pytorch map correctly to int tensors.
+    dataset_features = Features({
+        'input_ids': Sequence(feature=Value(dtype='int32')),
+        'attention_mask': Sequence(feature=Value(dtype='int32')),
+        'labels': Sequence(feature=Value(dtype='int32')),
+    })
+
+    # Enable streaming mode to load the dataset as an iterator.
+    # This allows processing data samples on-the-fly without downloading or loading the entire dataset into memory.
+    # https://huggingface.co/docs/datasets/stream
+    train_dataset = load_dataset("json", data_files=str(config.train_dataset_path), features=dataset_features, streaming=True)["train"]
+    train_dataset = train_dataset.shuffle(buffer_size=config.dataset_shuffle_buffer_size, seed=config.dataset_shuffle_seed)  # take up to suffle_buffer_size examples and randomly shuffle them
+    if num_of_train_examples_to_skip  > 0:
+        train_dataset = train_dataset.skip(num_of_train_examples_to_skip)
+
+    eval_dataset = load_dataset("json", data_files=str(config.eval_dataset_path), features=dataset_features, streaming=True)["train"]
+    return train_dataset, eval_dataset 
     
 
 def run(config: Config) -> None:
     _ensure_output_paths_exist(config)
     _ensure_clean_checkpoint_dir(config)
 
+    num_of_train_examples_to_skip = _get_num_of_train_examples_to_skip(config)  
     train_dataset_length = _get_dataset_length(config.train_dataset_path)
     trainer_max_steps = _calculate_max_steps(config, train_dataset_length)
 
-    train_dataset, eval_dataset = load_datasets(config)
+    train_dataset, eval_dataset = load_datasets(config, num_of_train_examples_to_skip)
     logger.info(f"Dataset: {train_dataset_length} train examples, max_steps={trainer_max_steps}")
 
     lora_model = load_and_configure_lora_model(config)
