@@ -1,0 +1,41 @@
+# Version control
+.git
+.gitignore
+
+# Dataset artifacts
+*.jsonl
+
+# Docs
+docs/
+README.md
+LICENSE.txt
+TODO.md
+
+# Python cache/build artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor/OS junk
+.vscode/
+.idea/
+.DS_Store
+
+# CI/local env
+.venv/
+venv/
+.env
+
+# Project specific
+backup/
+base_models/
+data/
+dist/
+finetuning_runs/
+outputs/
+third_party/
+tests/

@@ -25,20 +25,46 @@ jobs:
       - name: Run Pytest
         run: uv run pytest
 
-  docker-build-test:
-    name: Docker Build Test
+  publish-docker-image:
+    name: Publish Docker Image
+    needs: [test]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
-      - name: Build Docker image
-        run: docker build -t codefinetuner-ci-image .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
   build:
     name: Build Distribution
-    needs: [test, docker-build-test]
+    needs: [test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,7 +104,7 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: build
+    needs: [build, publish-docker-image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
