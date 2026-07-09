@@ -19,7 +19,7 @@ jobs:
       - name: Install uv and Set up Python
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
           enable-cache: true
       - name: Install Dependencies
         run: uv sync --group dev
@@ -34,10 +34,25 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Check space before cleanup
+        run: df -h
+
+      - name: Node cleanup
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo docker builder prune -a
+
+      - name: Check space after cleanup
+        run: df -h
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3  # initializes BuildKit engine required for gha cache backend
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -46,21 +61,54 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels)
-        id: meta
+      - name: Extract metadata (tags, labels) - CPU
+        id: meta-cpu
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          flavor: |
+            suffix=-cpu,onlatest=true
           tags: |
             type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image - CPU
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile.cpu
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-cpu.outputs.tags }}
+          labels: ${{ steps.meta-cpu.outputs.labels }}
+          build-args: |
+            BUILD_VERSION=${{ github.ref_name }}
+          cache-from: type=gha,scope=cpu  # pulls previous layers and uv cache from GitHub to speed up the build
+          cache-to: type=gha,mode=max,scope=cpu  # exports new layers and uv cache to GitHub for subsequent runs
+
+      - name: Extract metadata (tags, labels) - GPU
+        id: meta-gpu
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          flavor: |
+            suffix=-gpu,onlatest=true
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest
+
+      - name: Build and push Docker image - GPU
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.gpu
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta-gpu.outputs.tags }}
+          labels: ${{ steps.meta-gpu.outputs.labels }}
+          build-args: |
+            BUILD_VERSION=${{ github.ref_name }}
+          cache-from: type=gha,scope=gpu  # pulls previous layers and uv cache from GitHub to speed up the build
+          cache-to: type=gha,mode=max,scope=gpu  # exports new layers and uv cache to GitHub for subsequent runs
 
   build:
     name: Build Distribution
@@ -74,7 +122,7 @@ jobs:
       - name: Install uv and Set up Python
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
           enable-cache: true
       - name: Build sdist and wheel
         run: uv build

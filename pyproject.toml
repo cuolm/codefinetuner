@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "codefinetuner"
 dynamic = ["version", "readme"]
 description = "Add your description here"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICEN[CS]E*"]
 authors = [
