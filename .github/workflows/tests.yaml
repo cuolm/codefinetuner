@@ -16,15 +16,15 @@ jobs:
       - name: Install uv and Set up Python
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.13"
+          python-version: "3.12"
           enable-cache: true
       - name: Install Dependencies
         run: uv sync --group dev
       - name: Run Pytest
         run: uv run pytest
 
-  docker-build-test:
-    name: Docker Build Test
+  docker-build-test-cpu:
+    name: Docker Build Test - CPU
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,4 +32,15 @@ jobs:
           fetch-depth: 0
           submodules: recursive
       - name: Build Docker image
-        run: docker build -t codefinetuner-ci-image .
+        run: docker build -f Dockerfile.cpu -t codefinetuner-ci-image-cpu .
+
+  docker-build-test-gpu:
+    name: Docker Build Test - GPU
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - name: Build Docker image
+        run: docker build -f Dockerfile.gpu -t codefinetuner-ci-image-gpu .

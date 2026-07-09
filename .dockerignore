@@ -1,47 +1,57 @@
-# Exclude Python cache files
-__pycache__/
-*.pyc
-*.pyo
+# Version Control & Docker
+.git/
+.gitignore
+Dockerfile*
+.dockerignore
 
-# Exclude virtual environment and environment files
+# Environments & Secrets
 .env
 .venv/
 env/
 venv/
 
-# Exclude version control files and folders
-.git/
-.gitignore
-
-# Exclude test folders
-tests/
-
-# Exclude docs folder as not needed inside container
-docs/
-
-# Exclude Python packaging/build artifacts
+# Python Cache & Build Artifacts
+__pycache__/
+*.pyc
+*.pyo
 *.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 build/
 dist/
 
-# Editor/IDE configs
+# IDE & OS Junk
 .vscode/
 .idea/
+.DS_Store
 
-# Exclude Dockerfile and dockerignore file itself
-Dockerfile
-.dockerignore
+# Documentation & Tests
+docs/
+tests/
+testing/
+LICENSE.txt
+TODO.md
 
-# Exclude project specific folders and files
-backup/
+# Datasets, Models, & Outputs
 data/
 datasets/
+backup/
+base_model/
+base_models/
 lora_adapter/
 lora_model/
 lora_model_gguf/
-base_model/
-jupyter_nb/
+finetuning_runs/
+outputs/
 results/
-testing/
 tmp_trainer/
-TODO.md
+third_party/
+jupyter_nb/
+*.jsonl
+
+# Heavy Model Weights (Any Directory)
+**/*.pt
+**/*.bin
+**/*.safetensors
+**/*.gguf
