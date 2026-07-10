@@ -33,4 +33,25 @@ RUN uv sync --frozen
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-CMD ["bash"]
+# SSH Entrypoint:
+# 1. 'ssh-keygen -A': Generates unique cryptographic host keys dynamically.
+# 2. Key Resolution: Reads 'PUBLIC_KEY' or fallback 'SSH_PUBLIC_KEY'.
+# 3. Key Injection: Provisions '/root/.ssh', writes 'authorized_keys' safely via printf, and sets permissions.
+# 4. Profile Target configuration: Appends 'cd /app' to the bash profile configuration to land in the workspace immediately on login.
+# 5. 'mkdir -p /run/sshd': Creates the privilege-separation directory required by sshd to start.
+# 6. '/usr/sbin/sshd': Launches the OpenSSH server daemon on Port 22.
+# 7. 'sleep infinity': Keeps the container running.
+CMD ["sh", "-c", "\
+    ssh-keygen -A && \
+    PUB_KEY=\"${PUBLIC_KEY:-$SSH_PUBLIC_KEY}\" && \
+    if [ -n \"$PUB_KEY\" ]; then \
+        mkdir -p /root/.ssh && \
+        printf '%s\n' \"$PUB_KEY\" >> /root/.ssh/authorized_keys && \
+        chmod 700 /root/.ssh && \
+        chmod 600 /root/.ssh/authorized_keys; \
+    fi && \
+    echo 'cd /app' >> /root/.bashrc && \
+    mkdir -p /run/sshd && \
+    /usr/sbin/sshd && \
+    sleep infinity \
+    "]
