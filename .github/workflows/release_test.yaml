@@ -199,7 +199,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          git fetch --tags --force
+
+          TAG_MSG=$(git tag -l --format='%(contents:body)' ${{ github.ref_name }})
+
+          echo "=== TAG_MSG content ==="
+          echo "$TAG_MSG"
+          echo "=== end TAG_MSG ==="
+
+          if [ -z "$TAG_MSG" ]; then
+            TAG_MSG="Release ${{ github.ref_name }}"
+          fi
+
+          gh release delete ${{ github.ref_name }} --yes --cleanup-tag=false 2>/dev/null || true
+
           gh release create ${{ github.ref_name }} dist/* \
-            --title "${{ github.ref_name }}" \
-            --generate-notes \
-            --prerelease
+            --title "Release ${{ github.ref_name }}" \
+            --notes "$TAG_MSG" \
+            --generate-notes
