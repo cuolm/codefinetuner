@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install native compilation tools
 RUN apt-get update && \
-    apt-get install -y make gcc build-essential vim openssh-server && \
+    apt-get install -y make gcc build-essential vim git openssh-server && \
     rm -rf /var/lib/apt/lists/*
 
 # ARG accepts dynamic versions from CI/CD (e.g., --build-arg BUILD_VERSION=1.2.0).
@@ -21,17 +21,30 @@ ARG BUILD_VERSION=0.0.0
 # In GitHub Actions, BUILD_VERSION is passed dynamically at build time.
 ENV SETUPTOOLS_SCM_PRETEND_VERSION=$BUILD_VERSION
 
+# Forces Python to print logs immediately so they appear in real-time without buffering
+ENV PYTHONUNBUFFERED=1
+
 # Cache layer: install third-party dependencies first
 COPY pyproject.toml uv.lock ./
-RUN uv sync --no-install-project --frozen
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --no-install-project --frozen
 
 # Copy source code and perform final package installation
 COPY . .
-RUN uv sync --frozen
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen
 
-# Environment configuration
-ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONUNBUFFERED=1
+# Install codefinetuner globally as a uv tool
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv tool install codefinetuner
+
+# Activate tool binaries and project virtual environment globally (for non-SSH containers)
+ENV PATH="/root/.local/bin:/app/.venv/bin:$PATH"
+
+# - profile.d: Ensures the 'codefinetuner' tool is found and executable over SSH.
+# - .bashrc: Ensures the terminal shell starts directly inside the /app project directory.
+RUN echo 'export PATH="/root/.local/bin:/app/.venv/bin:$PATH"' > /etc/profile.d/toolpath.sh && \
+    echo 'cd /app' >> /root/.bashrc
 
 # SSH Entrypoint:
 # 1. 'ssh-keygen -A': Generates unique cryptographic host keys dynamically.
@@ -50,7 +63,6 @@ CMD ["sh", "-c", "\
         chmod 700 /root/.ssh && \
         chmod 600 /root/.ssh/authorized_keys; \
     fi && \
-    echo 'cd /app' >> /root/.bashrc && \
     mkdir -p /run/sshd && \
     /usr/sbin/sshd && \
     sleep infinity \

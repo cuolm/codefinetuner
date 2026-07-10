@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install native compilation tools
 RUN apt-get update && \
-    apt-get install -y make gcc build-essential vim openssh-server && \
+    apt-get install -y make gcc build-essential vim git openssh-server && \
     rm -rf /var/lib/apt/lists/*
 
 # Install python since base image has no python installation
@@ -40,8 +40,17 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
-# Activate project virtual environment
-ENV PATH="/app/.venv/bin:$PATH"
+# Install codefinetuner globally as a uv tool
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv tool install codefinetuner
+
+# Activate tool binaries and project virtual environment globally (for non-SSH containers)
+ENV PATH="/root/.local/bin:/app/.venv/bin:$PATH"
+
+# - profile.d: Ensures the 'codefinetuner' tool is found and executable over SSH.
+# - .bashrc: Ensures the terminal shell starts directly inside the /app project directory.
+RUN echo 'export PATH="/root/.local/bin:/app/.venv/bin:$PATH"' > /etc/profile.d/toolpath.sh && \
+    echo 'cd /app' >> /root/.bashrc
 
 # SSH Entrypoint:
 # 1. 'ssh-keygen -A': Generates unique cryptographic host keys dynamically.
@@ -60,7 +69,6 @@ CMD ["sh", "-c", "\
         chmod 700 /root/.ssh && \
         chmod 600 /root/.ssh/authorized_keys; \
     fi && \
-    echo 'cd /app' >> /root/.bashrc && \
     mkdir -p /run/sshd && \
     /usr/sbin/sshd && \
     sleep infinity \
