@@ -40,10 +40,10 @@ jobs:
           submodules: recursive
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3  # initializes BuildKit engine required for gha cache backend
+        uses: docker/setup-buildx-action@v4  # initializes BuildKit engine required for gha cache backend
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -51,7 +51,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) - CPU
         id: meta-cpu
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           flavor: |
@@ -63,7 +63,7 @@ jobs:
             org.opencontainers.image.description=CPU image for codefinetuner
 
       - name: Build and push Docker image - CPU
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.cpu
@@ -101,10 +101,10 @@ jobs:
           submodules: recursive
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3  # initializes BuildKit engine required for gha cache backend
+        uses: docker/setup-buildx-action@v4  # initializes BuildKit engine required for gha cache backend
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -112,7 +112,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) - GPU
         id: meta-gpu
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           flavor: |
@@ -124,7 +124,7 @@ jobs:
             org.opencontainers.image.description=GPU image for codefinetuner
 
       - name: Build and push Docker image - GPU
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.gpu
@@ -202,10 +202,6 @@ jobs:
           git fetch --tags --force
 
           TAG_MSG=$(git tag -l --format='%(contents:body)' ${{ github.ref_name }})
-
-          echo "=== TAG_MSG content ==="
-          echo "$TAG_MSG"
-          echo "=== end TAG_MSG ==="
 
           if [ -z "$TAG_MSG" ]; then
             TAG_MSG="Release ${{ github.ref_name }}"
