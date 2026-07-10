@@ -26,26 +26,14 @@ jobs:
       - name: Run Pytest
         run: uv run pytest
 
-  publish-docker-image:
-    name: Publish Docker Image
+  publish-docker-image-cpu:
+    name: Publish Docker Image - CPU
     needs: [test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Check space before cleanup
-        run: df -h
-
-      - name: Node cleanup
-        run: |
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-          sudo docker image prune --all --force
-          sudo docker builder prune -a
-
-      - name: Check space after cleanup
-        run: df -h
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -84,6 +72,41 @@ jobs:
             BUILD_VERSION=${{ github.ref_name }}
           cache-from: type=gha,scope=cpu  # pulls previous layers and uv cache from GitHub to speed up the build
           cache-to: type=gha,mode=max,scope=cpu  # exports new layers and uv cache to GitHub for subsequent runs
+
+  publish-docker-image-gpu:
+    name: Publish Docker Image - GPU
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check space before cleanup
+        run: df -h
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          sudo docker builder prune --all --force
+
+      - name: Check space after cleanup
+        run: df -h
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3  # initializes BuildKit engine required for gha cache backend
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) - GPU
         id: meta-gpu
@@ -154,7 +177,7 @@ jobs:
 
   github-release:
     name: Create GitHub Release
-    needs: [build, publish-docker-image]
+    needs: [build, publish-docker-image-cpu, publish-docker-image-gpu]
     runs-on: ubuntu-latest
     permissions:
       contents: write
