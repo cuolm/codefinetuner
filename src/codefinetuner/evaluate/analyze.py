@@ -45,7 +45,11 @@ def analyze_metric(config: Config, metric_name: str, higher_is_better: bool) -> 
     logger.info(f"\n=== {metric_name.upper()} SUMMARY ===")
     logger.info(f"Examples: {len(base_array_np)}")
     logger.info(f"Base average: {base_average_np:.3f} | LoRA avg: {lora_average_np:.3f}")
-    logger.info(f"Improvement: {improvement_np:+.3f}")
+    if base_average_np != 0:
+        pct_change_np = (improvement_np / abs(base_average_np)) * 100
+        logger.info(f"Improvement: {improvement_np:+.3f} ({pct_change_np:+.1f}%)")
+    else:
+        logger.info(f"Improvement: {improvement_np:+.3f} (N/A%, base avg is 0)")
     
     metric_stats_np =  {
         "metric": metric_name,
