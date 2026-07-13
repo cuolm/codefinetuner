@@ -5,7 +5,7 @@
 [![Tests](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yaml/badge.svg)](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yaml)
 
 CodeFinetuner fine-tunes a local code autocomplete model on your own repository for use in editors like VS Code or Vim/Neovim.
-It trains a Low-Rank Adapter ([LoRA](https://arxiv.org/abs/2106.09685)) on Fill-In-the-Middle ([FIM](https://arxiv.org/abs/2207.14255)) examples so the model learns the structure and patterns of your codebase.
+It trains a Low-Rank Adapter ([LoRA](https://arxiv.org/abs/2106.09685)) on Structure-Aware Fill-in-the-Middle ([FIM](https://arxiv.org/abs/2207.14255)) examples so the model learns the structure and patterns of your codebase.
 
 ## Table of Contents
 - [Architecture](#architecture)
@@ -87,6 +87,7 @@ Here is an example illustrating how a single FIM example is created:
 <|fim_suffix|>    }\n    return count;
 <|fim_middle|>count = count + (value & 1);\n    value = (value >> 1);
 ```
+Additionally, config parameters are available to include randomly split FIM examples in your dataset, which can sometimes improve fine-tuning results.
 ## Quick Start
 Install CodeFinetuner globally to run the pipeline anywhere on your system:
 ```bash
@@ -216,12 +217,20 @@ For setup instructions with the VS Code extension [llama.vscode](https://github.
 
 
 ## Docker Image
+Docker images are automatically built and published using GitHub Actions. Separate images are available for GPU and CPU usage. The built images can be found in the project's [GitHub Container Registry](https://ghcr.io/cuolm/codefinetuner).
+
+### Manual Build
 
 #### 1. Build the Docker Image
-Build the image from the `Dockerfile`, tagging it as codefinetuner-image.
+GPU Image:
 ```bash
-docker build -t codefinetuner-image .
+docker build -f Dockerfile.gpu -t codefinetuner:gpu-local .
 ```
+CPU Image:
+```bash
+docker build -f Dockerfile.cpu -t codefinetuner:cpu-local .
+```
+
 #### 2. Prepare Data and Run the Container
 To allow the container to access your data for fine-tuning, use a bind mount to link your host machine's `data` directory to the container.  
 On your host machine (where you run Docker), create a folder named `data` if it does not already exist. Put all files you want to use for fine-tuning inside the `data` directory. For manual mode, include `train`, `eval`, and `test` subfolders with the split you want to use.  
@@ -232,14 +241,14 @@ Use this command to enable CUDA support for `torch` and `bitsandbytes`. Requires
 ```bash
 docker run --gpus all -it --rm \
   -v $(pwd)/data:/app/data \
-  codefinetuner-image /bin/bash
+  codefinetuner:gpu-local /bin/bash
 ```
 #### CPU Only
 Use this if you do not have a compatible GPU. Fine-tuning will be much slower.
 ```bash
 docker run -it --rm \
   -v $(pwd)/data:/app/data \
-  codefinetuner-image /bin/bash
+  codefinetuner:cpu-local /bin/bash
 ```
 
 ## Tree-sitter Customization
@@ -252,7 +261,7 @@ Tree-sitter turns source code into structural blocks used to generate FIM exampl
 Run the test suite with:
 
 ```bash
-pytest
+pytest tests
 ```
 
 ## Resources
