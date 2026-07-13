@@ -21,7 +21,7 @@ class Config:
 
     # --- Model Settings ---
     model_attn_implementation: str = "sdpa"  # sdpa = built-in PyTorch implementation of scaled dot product attention, imporves performance and memory efficiency
-    model_dtype: Any = field(init=False)    # changed to Any to bypass OmegaConf validation
+    model_dtype: Any = field(init=False)  # changed to Any to bypass OmegaConf validation
 
     # --- LoRA Settings ---
     lora_r: int = 32
@@ -57,7 +57,7 @@ class Config:
     trainer_logging_strategy: str = "steps"
 
     # --- Checkpoint Selection ---
-    selected_checkpoint_strategy = "best"
+    selected_checkpoint_strategy: str = "best"
 
     # --- Dataset ---
     dataset_shuffle_buffer_size: int = 50000
@@ -106,8 +106,16 @@ class Config:
         return OmegaConf.to_object(merged_config_dict)
 
     def __post_init__(self) -> None:
+        self._validate_config()
         self._setup_device_and_precision()
         self._setup_paths()
+
+    def _validate_config(self) -> None:
+        if self.selected_checkpoint_strategy == "best" and self.trainer_eval_steps != self.trainer_save_steps:
+            raise ValueError(
+                f"selected_checkpoint_strategy='best' requires trainer_eval_steps "
+                f"({self.trainer_eval_steps}) == trainer_save_steps ({self.trainer_save_steps})"
+            )
         
     def _setup_device_and_precision(self) -> None:
         if torch.cuda.is_available():

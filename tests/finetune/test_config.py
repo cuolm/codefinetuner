@@ -65,6 +65,30 @@ def test_load_from_yaml_ignores_unknown_keys(tmp_path):
     assert test_config.model_name == "Qwen/Qwen2.5-Coder-1.5B"
 
 
+# --- _validate_config ---
+
+def test_validate_config_best_strategy_matching_steps_ok(config):
+    config.selected_checkpoint_strategy = "best"
+    config.trainer_eval_steps = 25
+    config.trainer_save_steps = 25
+    config._validate_config()  # should not raise
+
+
+def test_validate_config_best_strategy_mismatched_steps_raises(config):
+    config.selected_checkpoint_strategy = "best"
+    config.trainer_eval_steps = 25
+    config.trainer_save_steps = 50
+    with pytest.raises(ValueError, match="requires trainer_eval_steps"):
+        config._validate_config()
+
+
+def test_validate_config_last_strategy_mismatched_steps_ok(config):
+    config.selected_checkpoint_strategy = "last"
+    config.trainer_eval_steps = 25
+    config.trainer_save_steps = 50
+    config._validate_config()  
+
+
 # --- _setup_paths ---
 
 def test_setup_paths_all_paths_are_initialized_correctly(config):
