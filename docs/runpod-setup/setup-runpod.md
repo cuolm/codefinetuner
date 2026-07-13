@@ -8,7 +8,7 @@ Go to [runpod.io](https://www.runpod.io/) and sign up, or sign in if you already
 ## Step 2: Add Your SSH Key
 Go to **Settings** and add your SSH public key so RunPod can automatically inject it into your Pods.
 
-![SSH public key setup](./runpod_ssh_key.png)
+![SSH public key setup](./runpod-ssh-key.png)
 
 For more details, see the official [RunPod SSH documentation](https://docs.runpod.io/pods/configuration/use-ssh).
 
@@ -21,12 +21,12 @@ Navigate to the **Templates** section and click **New Template**.
 
 Click **Create**.
 
-![Create template](./runpod_create_template.png)
+![Create template](./runpod-create-template.png)
 
 ## Step 4: Deploy the Pod
 Click the three-dot menu next to your template and select **Deploy**. Choose a GPU based on your project requirements (model size, codebase size, etc.), then click **Deploy On-Demand**.
 
-![Deploy template](./runpod_deploy_template.png)
+![Deploy template](./runpod-deploy-template.png)
 
 ## Step 5: Connect to the Pod
 Wait for the Pod to finish initializing, then go to **Connect** and copy the SSH over exposed TCP command. Run it in your terminal:

@@ -69,15 +69,15 @@ Here is an example illustrating how a single FIM example is created:
   <tr>
     <td align="center" valign="top">
       <strong>Source Code File</strong><br>
-      <img src="/docs/code_file.png" alt="code_file" width="250">
+      <img src="/docs/readme-assets/code-file.png" alt="code-file" width="250">
     </td>
     <td align="center" valign="top">
       <strong>Code Block</strong><br>
-      <img src="/docs/code_block.png" alt="code_block" width="250">
+      <img src="/docs/readme-assets/code-block.png" alt="code-block" width="250">
     </td>
     <td align="center" valign="top">
       <strong>One Subblock</strong><br>
-      <img src="/docs/code_subblock.png" alt="code_subblock" width="250">
+      <img src="/docs/readme-assets/code-subblock.png" alt="code-subblock" width="250">
     </td>
   </tr>
 </table>

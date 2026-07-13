@@ -8,6 +8,7 @@ Install the extension from the VS Code Marketplace: [Click here](https://marketp
 
 ### 2. Ensure llama.cpp is Installed
 Open the **llama-vscode** menu by clicking it in the status bar or pressing `Ctrl+Shift+M`, then select **Install/Upgrade llama.cpp**.
+![Install llama.cpp](./install-llama-cpp.png)
 
 *Note: On macOS, you can also install via Homebrew:*
 ```bash
