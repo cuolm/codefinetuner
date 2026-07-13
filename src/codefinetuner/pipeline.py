@@ -1,6 +1,7 @@
 import argparse
 import logging
 import logging.config
+import warnings
 import sys
 from pathlib import Path
 
@@ -54,6 +55,11 @@ def _setup_logger(log_level: str) -> None:
         },
     }
     logging.config.dictConfig(logger_config)
+
+    # Transformers emits deprecation (FutureWarning) and alias access (UserWarning)
+    # via Python's `warnings` module, which bypasses `logging.config.dictConfig`.
+    # Filtering module="transformers" catches both warning types at once.
+    warnings.filterwarnings("ignore", module="transformers")
 
 
 def _parse_args() -> argparse.Namespace:
