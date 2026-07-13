@@ -54,10 +54,8 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
-          flavor: |
-            suffix=-cpu,onlatest=true
           tags: |
-            type=raw,value=${{ github.ref_name }}
+            type=raw,value=${{ github.ref_name }}-cpu
           labels: |
             org.opencontainers.image.description=CPU image for codefinetuner
 
@@ -114,10 +112,8 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
-          flavor: |
-            suffix=-gpu,onlatest=true
           tags: |
-            type=raw,value=${{ github.ref_name }}
+            type=raw,value=${{ github.ref_name }}-gpu
           labels: |
             org.opencontainers.image.description=GPU image for codefinetuner
 
@@ -152,7 +148,7 @@ jobs:
       - name: Build sdist and wheel
         run: uv build
       - name: Store Artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: python-package-distributions
           path: dist/
