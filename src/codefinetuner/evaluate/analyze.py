@@ -75,13 +75,17 @@ def plot_metric_and_save(metric_stats_np: dict, metric_name: str, plot_path: Pat
     lora_array_np = metric_stats_np["lora_array_np"]
     base_average_np = metric_stats_np["base_average_np"]
     lora_average_np = metric_stats_np["lora_average_np"]
+
+    n_examples = len(base_array_np)
+    diff = (lora_average_np - base_average_np) if metric_stats_np["higher_is_better"] else (base_average_np - lora_average_np)
+    pct_str = f"{(diff / abs(base_average_np) * 100):+.1f}%" if base_average_np != 0 else "N/A%"
     
     if metric_stats_np["is_binary"]:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
         fig.suptitle(f'{metric_name.title()} Scores', fontsize=16) 
         
         ax1.bar(['Base', 'LoRA'], [base_average_np, lora_average_np], color=['steelblue', 'darkorange'])
-        ax1.set_title(f'{metric_name.title()} Success Rate')
+        ax1.set_title(f"{metric_name.title()} Success Rate\nN={n_examples} | Δ {diff:+.3f} ({pct_str})", fontsize=11)
         ax1.set_ylim(0, 1)
         ax1.set_ylabel('Rate')
         
@@ -106,7 +110,7 @@ def plot_metric_and_save(metric_stats_np: dict, metric_name: str, plot_path: Pat
             axis_upper_bound = max_val * 1.1
 
         axs[0, 0].bar(['Base', 'LoRA'], [base_average_np, lora_average_np], color=['steelblue', 'darkorange'])
-        axs[0, 0].set_title('Average Scores')
+        axs[0, 0].set_title(f"Average Scores\nN={n_examples} | Δ {diff:+.3f} ({pct_str})", fontsize=11)
         axs[0, 0].set_ylabel('Score')
         
         axs[0, 1].boxplot([base_array_np, lora_array_np], tick_labels=['Base', 'LoRA'], patch_artist=True, boxprops=dict(facecolor='lightblue', color='blue'), medianprops=dict(color='red', linewidth=2))
@@ -181,6 +185,9 @@ def plot_all_metric_averages_and_save(all_metric_stats_np: dict, plot_path: Path
         base_average = metric_stats["base_average_np"]
         lora_average = metric_stats["lora_average_np"]
         n_examples = len(metric_stats["base_array_np"])
+
+        diff = (lora_average - base_average) if metric_stats["higher_is_better"] else (base_average - lora_average)
+        pct_str = f"{(diff / abs(base_average) * 100):+.1f}%" if base_average != 0 else "N/A%"
         
         ax = axes[idx]
         bars = ax.bar(['Base', 'LoRA'], [base_average, lora_average],color=['steelblue', 'darkorange'], alpha=0.8)
@@ -189,8 +196,9 @@ def plot_all_metric_averages_and_save(all_metric_stats_np: dict, plot_path: Path
         ax.set_ylim(0, max_axes_val)
         
         ax.set_ylabel('Score')
-        ax.set_title(f'{metric_name.title()}\nN={n_examples}')
-        
+        direction = "↑ better" if metric_stats["higher_is_better"] else "↓ better"
+        ax.set_title(f"{metric_name.title()} ({direction})\nN={n_examples} | Δ {diff:+.3f} ({pct_str})")
+
         for bar, val in zip(bars, [base_average, lora_average]):
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2., height + max_axes_val*0.02, f'{val:.3f}', ha='center', va='bottom', fontsize=11)
