@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Install native compilation tools
 RUN apt-get update && \
-    apt-get install -y make gcc build-essential vim git openssh-server && \
+    apt-get install -y make gcc build-essential tmux vim git openssh-server && \
     rm -rf /var/lib/apt/lists/*
 
 # Install python since base image has no python installation
