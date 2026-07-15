@@ -41,9 +41,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Activate tool binaries and project virtual environment globally (for non-SSH containers)
 ENV PATH="/root/.local/bin:/app/.venv/bin:$PATH"
 
-# - profile.d: Ensures the 'codefinetuner' tool is found and executable over SSH.
-# - .bashrc: Ensures the terminal shell starts directly inside the /app project directory.
+# Activate tool binaries, env variables, and project virtual environment globally (including SSH)
 RUN echo 'export PATH="/root/.local/bin:/app/.venv/bin:$PATH"' > /etc/profile.d/toolpath.sh && \
+    echo "export SETUPTOOLS_SCM_PRETEND_VERSION=\"${BUILD_VERSION}\"" >> /etc/profile.d/toolpath.sh && \
     echo 'cd /app' >> /root/.bashrc
 
 # SSH Entrypoint:
