@@ -6,6 +6,7 @@ import httpx
 from typing import Any
 
 from .config import Config
+from .. import tracking as mlf
 
 
 logger = logging.getLogger(__name__)
@@ -127,6 +128,7 @@ def run(config: Config) -> None:
 def main() -> None:
     try:
         convert_config = Config()
+        mlf.log_stage_params(convert_config, "convert")
         run(convert_config)
     except Exception:
         logger.exception("Model conversion to GGUF failed.")

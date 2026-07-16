@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import logging
 import logging.config
 import warnings
@@ -13,6 +14,7 @@ from .evaluate.config import Config as EvaluateConfig
 from .evaluate.run import run as evaluate_run
 from .convert.config import Config as ConvertConfig
 from .convert.run import run as convert_run
+from . import tracking as mlf
 
 
 logger = logging.getLogger(__name__)
@@ -113,37 +115,49 @@ def run_pipeline(
 
     config_path = Path(config_path)
 
-    if not skip_preprocess:
-        logger.info("=== Stage 1/4: Preprocess ===")
-        preprocess_config = PreprocessConfig.load_from_yaml(config_path)
-        preprocess_run(preprocess_config)
-        logger.info("Finished preprocess stage")
-    else:
-        logger.info("Skipping preprocess stage")
+    tracker_config = mlf.TrackerConfig.load_from_yaml(config_path)
 
-    if not skip_finetune:
-        logger.info("=== Stage 2/4: Finetune ===")
-        finetune_config = FinetuneConfig.load_from_yaml(config_path) 
-        finetune_run(finetune_config)
-        logger.info("Finished finetune stage")
-    else:
-        logger.info("Skipping finetune stage")
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_name = f"{config_path.stem}_{timestamp}"
 
-    if not skip_evaluate:
-        logger.info("=== Stage 3/4: Evaluate ===")
-        evaluate_config = EvaluateConfig.load_from_yaml(config_path)
-        evaluate_run(evaluate_config)
-        logger.info("Finished evaluate stage")
-    else:
-        logger.info("Skipping evaluate stage")
-    
-    if not skip_convert:
-        logger.info("=== Stage 4/4: Convert ===")
-        convert_config = ConvertConfig.load_from_yaml(config_path)
-        convert_run(convert_config)
-        logger.info("Finished conversion stage")
-    else:
-        logger.info("Skipping conversion stage")
+    with mlf.start_run(tracker_config, run_name=run_name):
+        if not skip_preprocess:
+            logger.info("=== Stage 1/4: Preprocess ===")
+            preprocess_config = PreprocessConfig.load_from_yaml(config_path)
+            mlf.log_stage_params(preprocess_config, "preprocess")
+            preprocess_run(preprocess_config)
+            logger.info("Finished preprocess stage")
+        else:
+            logger.info("Skipping preprocess stage")
+
+        if not skip_finetune:
+            logger.info("=== Stage 2/4: Finetune ===")
+            finetune_config = FinetuneConfig.load_from_yaml(config_path) 
+            mlf.log_stage_params(finetune_config, "finetune")
+            finetune_run(finetune_config)
+            logger.info("Finished finetune stage")
+        else:
+            logger.info("Skipping finetune stage")
+
+        if not skip_evaluate:
+            logger.info("=== Stage 3/4: Evaluate ===")
+            evaluate_config = EvaluateConfig.load_from_yaml(config_path)
+            mlf.log_stage_params(evaluate_config, "evaluate")
+            evaluate_run(evaluate_config)
+            logger.info("Finished evaluate stage")
+        else:
+            logger.info("Skipping evaluate stage")
+        
+        if not skip_convert:
+            logger.info("=== Stage 4/4: Convert ===")
+            convert_config = ConvertConfig.load_from_yaml(config_path)
+            mlf.log_stage_params(convert_config, "convert")
+            convert_run(convert_config)
+            logger.info("Finished conversion stage")
+        else:
+            logger.info("Skipping conversion stage")
+
+        mlf.log_artifact(config_path)
 
     logger.info("Pipeline completed successfully")
 

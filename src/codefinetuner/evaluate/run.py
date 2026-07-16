@@ -9,6 +9,7 @@ from .benchmark import create_benchmark_dataset
 from .generate import generate_and_save
 from .evaluate import evaluate_and_save
 from .analyze import analyze_metric, save_all_metric_stats, get_plot_path, plot_metric_and_save, plot_all_metric_averages_and_save
+from .. import tracking as mlf
 
 
 logger = logging.getLogger(__name__)
@@ -131,6 +132,7 @@ def main():
     _silence_noisy_third_party_loggers()
     try:
         evaluate_config = Config.load_from_yaml(user_args.config)
+        mlf.log_stage_params(evaluate_config, "evaluate")
         run(evaluate_config)
     except Exception:
         logger.exception("Evaluation failed")

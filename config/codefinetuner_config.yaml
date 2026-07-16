@@ -8,7 +8,7 @@ globals: &globals
   fim_pad_token: "<|fim_pad|>"
   eos_token: "<|endoftext|>"
   label_pad_token_id: -100
-  max_token_sequence_length: 1024
+  max_token_sequence_length: 128
   data_language: "c"
   data_extensions: [".c"]
   use_unsloth: false
@@ -23,8 +23,8 @@ preprocess:
   max_code_blocks_ast_depth: 20
   min_middle_tokens_length: 16
   max_middle_tokens_length: 256
-  fim_examples_per_subblock_ratio: 0.2
-  rand_to_ast_fim_examples_ratio: 1.0 
+  fim_examples_per_subblock_ratio: 0.05
+  rand_to_ast_fim_examples_ratio: 0.0
   rand_examples_min_prefix_suffix_tokens_length: 10
   tokenizer_batch_size: 32
   raw_data_path: data/tinyusb/examples # null: defaults to <workspace_path>/data
@@ -66,7 +66,7 @@ finetune:
 # evaluate stage
 evaluate:
   <<: *globals
-  benchmark_sample_size: 100 
+  benchmark_sample_size: 10
   benchmark_shuffle_buffer_size: 10000000
   benchmark_shuffle_seed: 42
   generation_checkpoint: "pipeline"  # "pipeline" -> selected checkpoint from finetune stage, "checkpoint-name" -> specific checkpoint
@@ -90,3 +90,10 @@ evaluate:
 # convert stage
 convert:
   <<: *globals
+
+# mlflow tracking (optional)
+tracking:
+  <<: *globals
+  use_mlflow: true
+  mlflow_tracking_path: null   # null -> <workspace_path>/outputs/mlflow
+  mlflow_experiment_name: "codefinetuner"

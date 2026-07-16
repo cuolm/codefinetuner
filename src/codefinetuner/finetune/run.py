@@ -13,6 +13,7 @@ from transformers import AutoTokenizer
 from .config import Config
 from .model import load_and_configure_lora_model
 from .train import train_lora_model, save_log, select_checkpoint_and_save, merge_lora_and_save, plot_loss
+from .. import tracking as mlf
 
 
 logger = logging.getLogger(__name__)
@@ -219,6 +220,7 @@ def main() -> None:
     _setup_logger(user_args.log_level)
     try:
         finetune_config = Config.load_from_yaml(user_args.config)
+        mlf.log_stage_params(finetune_config, "finetune")
         run(finetune_config)
     except Exception as e:
         logger.exception(f"Finetuning failed")
