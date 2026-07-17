@@ -6,7 +6,6 @@ import numpy as np
 from pathlib import Path
 
 from .config import Config
-from .. import tracking as mlf
 
 
 logger = logging.getLogger(__name__)
@@ -61,12 +60,6 @@ def analyze_metric(config: Config, metric_name: str, higher_is_better: bool) -> 
         "is_binary": is_binary, 
         "higher_is_better": higher_is_better
     }
-
-    mlf.log_metrics({
-        f"evaluate.{metric_name}.base": float(base_average_np),
-        f"evaluate.{metric_name}.lora": float(lora_average_np),
-        f"evaluate.{metric_name}.improvement": float(improvement_np),
-    })
 
     return metric_stats_np
 
@@ -156,8 +149,6 @@ def plot_metric_and_save(metric_stats_np: dict, metric_name: str, plot_path: Pat
     plt.savefig(plot_path)
     plt.close(fig)
 
-    mlf.log_artifact(plot_path, artifact_path="plots")
-
 
 def save_all_metric_stats(config: Config, all_metric_stats_np: list[dict]) -> None:
     """Writes all processed metrics to a single summary JSON file."""
@@ -182,7 +173,6 @@ def save_all_metric_stats(config: Config, all_metric_stats_np: list[dict]) -> No
     with open(config.benchmark_analysis_results_path, "w") as report_file:
         json.dump(report_content, report_file, indent=4)
     logger.info(f"Analysis results saved to: {config.benchmark_analysis_results_path}")
-    mlf.log_artifact(config.benchmark_analysis_results_path)
 
 
 def plot_all_metric_averages_and_save(all_metric_stats_np: dict, plot_path: Path) -> None:
@@ -221,4 +211,3 @@ def plot_all_metric_averages_and_save(all_metric_stats_np: dict, plot_path: Path
     plt.savefig(plot_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
     logger.info(f"All-metrics average plotted and saved to: {plot_path}")
-    mlf.log_artifact(plot_path, artifact_path="plots")

@@ -1,6 +1,6 @@
 import contextlib
+import json
 import logging
-import os
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Any
@@ -144,3 +144,83 @@ def log_model_artifacts(path: Path, artifact_path: str | None = None) -> None:
         mlflow.log_artifacts(str(path), artifact_path=artifact_path)
     else:
         logger.warning(f"log_model_artifacts skipped, path does not exist: {path}")
+
+
+def log_preprocess(preprocess_config: Any) -> None:
+    if not _MLFLOW_AVAILABLE or mlflow.active_run() is None:
+        return
+    
+    # Consolidate parameter logging
+    log_stage_params(preprocess_config, "preprocess")
+
+    results_dir = preprocess_config.preprocess_results_path
+    if results_dir.exists():
+        for item in results_dir.iterdir():
+            if item.is_file():
+                mlflow.log_artifact(str(item), artifact_path="preprocess_outputs")
+
+
+def log_finetune(finetune_config: Any, tracker_config: TrackerConfig) -> None:
+    if not _MLFLOW_AVAILABLE or mlflow.active_run() is None:
+        return
+        
+    log_stage_params(finetune_config, "finetune")
+
+    results_dir = finetune_config.finetune_outputs_dir_path / "results" 
+    if results_dir.exists():
+        for item in results_dir.iterdir():
+            if item.is_file():
+                mlflow.log_artifact(str(item), artifact_path="finetune_outputs")
+
+    strategy = tracker_config.mlflow_model_logging_strategy
+    if strategy in ("adapter", "all"):
+        checkpoint_path = finetune_config.selected_checkpoint_path
+        if checkpoint_path.exists():
+            logger.info("Logging LoRA adapter artifact to MLflow")
+            mlflow.log_artifacts(str(checkpoint_path), artifact_path="finetune_outputs/lora_adapter")
+
+
+def log_evaluate(evaluate_config: Any) -> None:
+    if not _MLFLOW_AVAILABLE or mlflow.active_run() is None:
+        return
+        
+    log_stage_params(evaluate_config, "evaluate")
+
+    analysis_path = evaluate_config.benchmark_analysis_results_path
+    if analysis_path.exists():
+        with open(analysis_path, "r") as f:
+            report = json.load(f)
+            
+        for stat in report.get("all_metric_stats", []):
+            metric_name = stat["metric"]
+            base_avg = stat["base_average"]
+            lora_avg = stat["lora_average"]
+            
+            if stat.get("higher_is_better", True):
+                improvement = lora_avg - base_avg
+            else:
+                improvement = base_avg - lora_avg
+                
+            mlflow.log_metrics({
+                f"evaluate.{metric_name}.base": float(base_avg),
+                f"evaluate.{metric_name}.lora": float(lora_avg),
+                f"evaluate.{metric_name}.improvement": float(improvement),
+            })
+            
+    outputs_dir = evaluate_config.evaluate_outputs_dir_path
+    if outputs_dir.exists():
+        mlflow.log_artifacts(str(outputs_dir), artifact_path="evaluation_outputs")
+
+
+def log_convert(convert_config: Any, tracker_config: TrackerConfig) -> None:
+    if not _MLFLOW_AVAILABLE or mlflow.active_run() is None:
+        return
+        
+    log_stage_params(convert_config, "convert")
+
+    strategy = tracker_config.mlflow_model_logging_strategy
+    if strategy in ("gguf", "all"):
+        gguf_path = convert_config.lora_model_gguf_path
+        if gguf_path.exists():
+            logger.info("Logging final merged GGUF model artifact to MLflow")
+            mlflow.log_artifacts(str(gguf_path), artifact_path="convert_outputs/finetuned_model_gguf")

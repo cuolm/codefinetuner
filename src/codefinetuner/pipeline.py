@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import json
 import logging
 import logging.config
 import warnings
@@ -124,8 +125,8 @@ def run_pipeline(
         if not skip_preprocess:
             logger.info("=== Stage 1/4: Preprocess ===")
             preprocess_config = PreprocessConfig.load_from_yaml(config_path)
-            mlf.log_stage_params(preprocess_config, "preprocess")
             preprocess_run(preprocess_config)
+            mlf.log_preprocess(preprocess_config)
             logger.info("Finished preprocess stage")
         else:
             logger.info("Skipping preprocess stage")
@@ -133,11 +134,8 @@ def run_pipeline(
         if not skip_finetune:
             logger.info("=== Stage 2/4: Finetune ===")
             finetune_config = FinetuneConfig.load_from_yaml(config_path) 
-            mlf.log_stage_params(finetune_config, "finetune")
             finetune_run(finetune_config)
-            if tracker_config.mlflow_model_logging_strategy in ("adapter", "all"):
-                logger.info("Logging LoRA adapter artifact to MLflow")
-                mlf.log_model_artifacts(finetune_config.selected_checkpoint_path, artifact_path="lora_adapter")
+            mlf.log_finetune(finetune_config, tracker_config)
             logger.info("Finished finetune stage")
         else:
             logger.info("Skipping finetune stage")
@@ -145,8 +143,8 @@ def run_pipeline(
         if not skip_evaluate:
             logger.info("=== Stage 3/4: Evaluate ===")
             evaluate_config = EvaluateConfig.load_from_yaml(config_path)
-            mlf.log_stage_params(evaluate_config, "evaluate")
             evaluate_run(evaluate_config)
+            mlf.log_evaluate(evaluate_config)
             logger.info("Finished evaluate stage")
         else:
             logger.info("Skipping evaluate stage")
@@ -154,11 +152,8 @@ def run_pipeline(
         if not skip_convert:
             logger.info("=== Stage 4/4: Convert ===")
             convert_config = ConvertConfig.load_from_yaml(config_path)
-            mlf.log_stage_params(convert_config, "convert")
             convert_run(convert_config)
-            if tracker_config.mlflow_model_logging_strategy in ("gguf", "all"):
-                logger.info("Logging final merged GGUF model artifact to MLflow")
-                mlf.log_model_artifacts(convert_config.lora_model_gguf_path, artifact_path="finetuned_model_gguf")
+            mlf.log_convert(convert_config, tracker_config)
             logger.info("Finished conversion stage")
         else:
             logger.info("Skipping conversion stage")

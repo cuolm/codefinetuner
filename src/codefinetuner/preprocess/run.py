@@ -9,7 +9,6 @@ from .config import Config
 from .extract import get_code_blocks_from_auto_split, get_code_blocks_from_manual_split
 from .process import create_fim_examples, estimate_bytes_per_token_ratio, tokenize_filter_and_save, augment_with_random_fim_examples
 from .analyze import analyze_and_plot_datasets
-from .. import tracking as mlf
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +153,6 @@ def main() -> None:
     _setup_logger(user_args.log_level)
     try:
         preprocess_config = Config.load_from_yaml(user_args.config)
-        mlf.log_stage_params(preprocess_config, "preprocess")
         run(preprocess_config)
     except Exception:
         logger.exception(f"Preprocessing failed")
