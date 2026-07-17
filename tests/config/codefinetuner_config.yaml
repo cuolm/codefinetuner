@@ -29,3 +29,9 @@ evaluate:
 
 convert:
   <<: *globals
+
+tracking:
+  <<: *globals
+  use_mlflow: true
+  mlflow_tracking_path: null   
+  mlflow_experiment_name: "codefinetuner"

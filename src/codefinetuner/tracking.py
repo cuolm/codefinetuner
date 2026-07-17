@@ -53,6 +53,20 @@ class TrackerConfig:
         return OmegaConf.to_object(merged_config_dict)
 
     def __post_init__(self) -> None:
+        self._validate_dependencies()
+        self._resolve_paths()
+
+    def _validate_dependencies(self) -> None:
+        if self.use_mlflow and not _MLFLOW_AVAILABLE:
+            raise ImportError(
+                "\n[ERROR] MLflow tracking is enabled in your configuration, but the package is not installed.\n"
+                "To resolve this, install the package with mlflow support:\n"
+                "  - Using uv:       uv add \"codefinetuner[mlflow]\"\n"
+                "  - Using pip:      pip install \"codefinetuner[mlflow]\"\n"
+                "  - For dev setup:  uv add mlflow --optional mlflow"
+            )
+
+    def _resolve_paths(self) -> None:
         if self.workspace_path is None:
             self.workspace_path = Path.cwd()
         else:
@@ -66,29 +80,23 @@ class TrackerConfig:
         self.mlflow_tracking_path.mkdir(parents=True, exist_ok=True)
 
 
-def _check_available(config: TrackerConfig) -> bool:
-    if config.use_mlflow and not _MLFLOW_AVAILABLE:
-        raise ImportError(
-            "use_mlflow is True but mlflow is not installed. "
-            "Install with: uv add mlflow-skinny"
-        )
-    return config.use_mlflow
-
-
 def start_run(config: TrackerConfig, run_name: str):
     if not config.use_mlflow:
         return contextlib.nullcontext()
     if mlflow.active_run() is not None:
         return contextlib.nullcontext()
         
-    # MLflow is deprecating the file-based backend in favor of DB-backed stores.
-    # We can't use a DB backend here because mlflow-skinny doesn't ship the
-    # SQLAlchemy model-registry store plugins (sqlite/postgres/mysql), only
-    # full `mlflow` does. Since we want skinny's minimal footprint, we opt
-    # back into the file store explicitly via this flag.
-    os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
-    mlflow.set_tracking_uri(f"file:{config.mlflow_tracking_path.resolve()}")
-    mlflow.set_experiment(config.mlflow_experiment_name)
+    # Setup full relational database tracking local backend
+    db_file_path = (config.mlflow_tracking_path / "mlflow.db").resolve()
+    mlflow.set_tracking_uri(f"sqlite:///{db_file_path.as_posix()}")
+    
+    # Configure explicit local folder location for heavy binary artifacts
+    experiment_name = config.mlflow_experiment_name
+    if mlflow.get_experiment_by_name(experiment_name) is None:
+        artifact_dir = (config.mlflow_tracking_path / "artifacts").resolve()
+        mlflow.create_experiment(name=experiment_name, artifact_location=artifact_dir.as_uri())
+        
+    mlflow.set_experiment(experiment_name)
     return mlflow.start_run(run_name=run_name)
 
 

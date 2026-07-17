@@ -173,6 +173,9 @@ def main() -> None:
             skip_evaluate=user_args.skip_evaluate,
             skip_convert=user_args.skip_convert,
         )
+    except ImportError as e:
+        print(e, file=sys.stderr)
+        sys.exit(1)
     except Exception:
         logger.exception("Pipeline execution failed")
         sys.exit(1)

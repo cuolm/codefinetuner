@@ -102,3 +102,12 @@ This document defines all mandatory and optional parameters in the YAML config f
 
 ## Convert Parameters (Optional)
 *This stage currently has no configurable parameters.*
+
+## Tracking Parameters (Optional)
+*Configures MLflow tracking for experiments and metrics.*
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `use_mlflow` | bool | `false` | Enables MLflow tracking for logging training and evaluation metrics. |
+| `mlflow_tracking_path` | str/null | `null` | Location to store MLflow tracking logs and artifacts. `null` defaults to `<workspace_path>/outputs/mlflow`. |
+| `mlflow_experiment_name` | str | `"codefinetuner"` | Name of the MLflow experiment under which runs are organized. |

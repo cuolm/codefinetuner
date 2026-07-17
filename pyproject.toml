@@ -37,11 +37,11 @@ dependencies = [
     "sentencepiece>=0.2.1",
     "unsloth>=2026.4.8 ; sys_platform == 'linux' or sys_platform == 'win32'",
     "rapidfuzz>=3.14.5",
-    "mlflow-skinny>=3.14.0",
 ]
 
 [dependency-groups]
 dev = [
+    "mlflow>=3.14.0",
     "pytest>=9.0.2",
     "pytest-mock>=3.15.1",
 ]
@@ -53,6 +53,11 @@ codefinetuner = "codefinetuner.pipeline:main"
 Homepage = "https://github.com/cuolm/codefinetuner"
 Repository = "https://github.com/cuolm/codefinetuner.git"
 Issues = "https://github.com/cuolm/codefinetuner/issues"
+
+[project.optional-dependencies]
+mlflow = [
+    "mlflow>=3.14.0",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]  # add src to sys.path when pytest runs
