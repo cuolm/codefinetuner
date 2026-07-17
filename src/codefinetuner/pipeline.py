@@ -135,6 +135,9 @@ def run_pipeline(
             finetune_config = FinetuneConfig.load_from_yaml(config_path) 
             mlf.log_stage_params(finetune_config, "finetune")
             finetune_run(finetune_config)
+            if tracker_config.mlflow_model_logging_strategy in ("adapter", "all"):
+                logger.info("Logging LoRA adapter artifact to MLflow")
+                mlf.log_model_artifacts(finetune_config.selected_checkpoint_path, artifact_path="lora_adapter")
             logger.info("Finished finetune stage")
         else:
             logger.info("Skipping finetune stage")
@@ -153,6 +156,9 @@ def run_pipeline(
             convert_config = ConvertConfig.load_from_yaml(config_path)
             mlf.log_stage_params(convert_config, "convert")
             convert_run(convert_config)
+            if tracker_config.mlflow_model_logging_strategy in ("gguf", "all"):
+                logger.info("Logging final merged GGUF model artifact to MLflow")
+                mlf.log_model_artifacts(convert_config.lora_model_gguf_path, artifact_path="finetuned_model_gguf")
             logger.info("Finished conversion stage")
         else:
             logger.info("Skipping conversion stage")

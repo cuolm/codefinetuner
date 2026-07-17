@@ -111,3 +111,4 @@ This document defines all mandatory and optional parameters in the YAML config f
 | `use_mlflow` | bool | `false` | Enables MLflow tracking for logging training and evaluation metrics. |
 | `mlflow_tracking_path` | str/null | `null` | Location to store MLflow tracking logs and artifacts. `null` defaults to `<workspace_path>/outputs/mlflow`. |
 | `mlflow_experiment_name` | str | `"codefinetuner"` | Name of the MLflow experiment under which runs are organized. |
+| `mlflow_model_logging_strategy` | str | `"none"` | Specifies which model artifacts are saved to MLflow. Options include `"none"`, `"adapter"` (LoRA weights), `"gguf"` (final model with merged LoRA adapter in gguf format), or `"all"`. |

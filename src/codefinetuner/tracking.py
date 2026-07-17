@@ -28,6 +28,7 @@ class TrackerConfig:
 
     workspace_path: Path | None = None
     mlflow_tracking_path: Path | None = None 
+    mlflow_model_logging_strategy: str = "none"
 
     @classmethod
     def load_from_yaml(cls, yaml_path: Path) -> "TrackerConfig":
@@ -100,6 +101,16 @@ def start_run(config: TrackerConfig, run_name: str):
     return mlflow.start_run(run_name=run_name)
 
 
+def _flatten(config, prefix: str) -> dict[str, Any]:
+    flat = {}
+    for f in fields(config):
+        if f.name in _SKIP_FIELDS:
+            continue
+        value = getattr(config, f.name)
+        flat[f"{prefix}.{f.name}"] = value if isinstance(value, (int, float, bool, str)) else str(value)
+    return flat
+
+
 def log_stage_params(stage_config, stage: str) -> None:
     if not _MLFLOW_AVAILABLE or mlflow.active_run() is None:
         return
@@ -125,11 +136,11 @@ def log_artifact(path: Path, artifact_path: str | None = None) -> None:
         logger.warning(f"log_artifact skipped, path does not exist: {path}")
 
 
-def _flatten(config, prefix: str) -> dict[str, Any]:
-    flat = {}
-    for f in fields(config):
-        if f.name in _SKIP_FIELDS:
-            continue
-        value = getattr(config, f.name)
-        flat[f"{prefix}.{f.name}"] = value if isinstance(value, (int, float, bool, str)) else str(value)
-    return flat
+def log_model_artifacts(path: Path, artifact_path: str | None = None) -> None:
+    if not _MLFLOW_AVAILABLE or mlflow.active_run() is None:
+        return
+    path = Path(path)
+    if path.exists():
+        mlflow.log_artifacts(str(path), artifact_path=artifact_path)
+    else:
+        logger.warning(f"log_model_artifacts skipped, path does not exist: {path}")

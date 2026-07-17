@@ -94,6 +94,7 @@ convert:
 # mlflow tracking (optional)
 tracking:
   <<: *globals
-  use_mlflow: false 
+  use_mlflow: true
   mlflow_tracking_path: null   # null -> <workspace_path>/outputs/mlflow
   mlflow_experiment_name: "codefinetuner"
+  mlflow_model_logging_strategy: "all"  # "none", "adapter", "gguf", or "all"
