@@ -189,7 +189,7 @@ def generate_and_save(config: Config, checkpoint_path: Path):
     line_counter = 0 
     try:
         with config.benchmark_dataset_path.open("r") as benchmark_dataset_file, \
-            config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
+            config.evaluation_results_path.open("w") as evaluation_results_file:
 
             for line in benchmark_dataset_file:
                 benchmark_example = json.loads(line)
@@ -218,4 +218,4 @@ def generate_and_save(config: Config, checkpoint_path: Path):
     except Exception as e:
         raise RuntimeError(f"Generation failed at example {line_counter}: {e}") from e
     
-    logger.info(f"Successfully generated and saved {line_counter} number of examples to {config.benchmark_evaluation_results_path}.")
+    logger.info(f"Successfully generated and saved {line_counter} number of examples to {config.evaluation_results_path}.")

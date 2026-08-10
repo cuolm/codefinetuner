@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def evaluate_and_save(config: Config) -> None:
-    results_path = config.benchmark_evaluation_results_path 
+    results_path = config.evaluation_results_path 
     temp_path = results_path.with_name(f"{results_path.name}.tmp")
 
     line_counter = 0
@@ -60,7 +60,7 @@ def evaluate_and_save(config: Config) -> None:
                     logger.info(f"Processed {line_counter} examples...")
 
         temp_path.replace(results_path)
-        logger.info(f"Successfully evaluated and saved {line_counter} examples to {config.benchmark_evaluation_results_path}.")
+        logger.info(f"Successfully evaluated and saved {line_counter} examples to {config.evaluation_results_path}.")
 
     except Exception as e:
         if temp_path.exists():

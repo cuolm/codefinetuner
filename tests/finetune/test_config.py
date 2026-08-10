@@ -95,7 +95,8 @@ def test_setup_paths_all_paths_are_initialized_correctly(config):
     path_attributes = [
         "train_dataset_path",
         "eval_dataset_path",
-        "finetune_outputs_dir_path",
+        "outputs_dir_path",
+        "results_dir_path",
         "trainer_checkpoints_dir_path",
         "trainer_model_merge_offload_folder_path",
         "trainer_log_path",
@@ -119,7 +120,8 @@ def test_ensure_output_paths_exist_creates_parent_dirs(config):
     _ensure_output_paths_exist(config)
     
     paths_to_check = [
-        "finetune_outputs_dir_path",
+        "outputs_dir_path",
+        "results_dir_path",
         "trainer_checkpoints_dir_path",
         "trainer_model_merge_offload_folder_path",
         "trainer_log_path",

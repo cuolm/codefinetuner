@@ -155,15 +155,15 @@ def test_start_run_initializes_mlflow_correctly(config, mocker):
     mlflow_mock.start_run.assert_called_once_with(run_name="test-run")
 
 
-# --- _flatten ---
+# --- _flatten_fields ---
 
 def test_flatten_prefixes_keys():
-    flat = mlf._flatten(_DummyStageConfig(), prefix="finetune")
+    flat = mlf._flatten_fields(_DummyStageConfig(), prefix="finetune")
     assert set(flat.keys()) == {"finetune.learning_rate", "finetune.epochs", "finetune.model_name"}
 
 
 def test_flatten_skips_configured_fields():
-    flat = mlf._flatten(_DummyStageConfig(), prefix="finetune")
+    flat = mlf._flatten_fields(_DummyStageConfig(), prefix="finetune")
     assert "finetune.rng" not in flat
 
 
@@ -172,12 +172,12 @@ def test_flatten_stringifies_non_primitive_values():
     class NestedConfig:
         path: pathlib.Path = pathlib.Path("/tmp/test")
 
-    flat = mlf._flatten(NestedConfig(), prefix="stage")
+    flat = mlf._flatten_fields(NestedConfig(), prefix="stage")
     assert flat["stage.path"] == str(pathlib.Path("/tmp/test"))
 
 
 def test_flatten_preserves_primitive_types():
-    flat = mlf._flatten(_DummyStageConfig(), prefix="finetune")
+    flat = mlf._flatten_fields(_DummyStageConfig(), prefix="finetune")
     assert isinstance(flat["finetune.learning_rate"], float)
     assert isinstance(flat["finetune.epochs"], int)
     assert isinstance(flat["finetune.model_name"], str)

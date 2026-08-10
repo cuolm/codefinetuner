@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import List, Any
+from typing import Any
 
 import torch
 from omegaconf import OmegaConf, MISSING
@@ -28,7 +28,7 @@ class Config:
     lora_alpha: int = 64
     lora_dropout: float = 0.1
     lora_bias: str = "none"
-    lora_target_modules: List[str] = field(default_factory=lambda: [
+    lora_target_modules: list[str] = field(default_factory=lambda: [
         "q_proj", "v_proj", "k_proj", "o_proj",
         "gate_proj", "down_proj", "up_proj"
     ])
@@ -70,7 +70,8 @@ class Config:
     workspace_path: Path | None = None 
     train_dataset_path: Path = field(init=False)
     eval_dataset_path: Path = field(init=False)
-    finetune_outputs_dir_path: Path = field(init=False)
+    outputs_dir_path: Path = field(init=False)
+    results_dir_path: Path = field(init=False)
     trainer_checkpoints_dir_path: Path = field(init=False)
     trainer_log_path: Path = field(init=False)
     trainer_plot_path: Path = field(init=False)
@@ -134,11 +135,12 @@ class Config:
             self.workspace_path = Path.cwd()
         self.train_dataset_path = self.workspace_path / "outputs" / "preprocess" / "results" / "datasets" / "train_dataset.jsonl"
         self.eval_dataset_path = self.workspace_path / "outputs" / "preprocess" / "results" / "datasets" / "eval_dataset.jsonl"
-        self.finetune_outputs_dir_path = self.workspace_path / "outputs" / "finetune"
-        self.trainer_checkpoints_dir_path = self.finetune_outputs_dir_path / "checkpoints"
-        self.trainer_model_merge_offload_folder_path = self.finetune_outputs_dir_path / "trainer_model_merge_offload_folder"
-        self.trainer_log_path = self.finetune_outputs_dir_path / "results" / "trainer_log.json" 
-        self.trainer_plot_path = self.finetune_outputs_dir_path / "results" / "trainer_loss_plot.png"
-        self.selected_checkpoint_path = self.finetune_outputs_dir_path / "results" / "selected_checkpoint"
-        self.lora_model_path = self.finetune_outputs_dir_path / "results" / "lora_model"
+        self.outputs_dir_path = self.workspace_path / "outputs" / "finetune"
+        self.results_dir_path = self.outputs_dir_path / "results"
+        self.trainer_log_path = self.results_dir_path / "trainer_log.json" 
+        self.trainer_plot_path = self.results_dir_path / "trainer_loss_plot.png"
+        self.selected_checkpoint_path = self.results_dir_path / "selected_checkpoint"
+        self.lora_model_path = self.results_dir_path / "lora_model"
+        self.trainer_checkpoints_dir_path = self.outputs_dir_path / "checkpoints"
+        self.trainer_model_merge_offload_folder_path = self.outputs_dir_path / "trainer_model_merge_offload_folder"
         logger.debug(f"Resolved workspace path to: {self.workspace_path}")

@@ -62,10 +62,10 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def _ensure_output_paths_exist(config) -> None:
+def _ensure_output_paths_exist(config: Config) -> None:
     paths = [
-        config.preprocess_outputs_dir_path,
-        config.preprocess_results_path,
+        config.outputs_dir_path,
+        config.results_dir_path,
         config.train_dataset_path,
         config.eval_dataset_path,
         config.test_dataset_path,

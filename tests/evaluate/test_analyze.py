@@ -86,7 +86,7 @@ def test_metric_stats_np():
 
 def test_analyze_metric_correct_averages(config, test_evaluation_results):
     _ensure_output_paths_exist(config)
-    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
+    with config.evaluation_results_path.open("w") as evaluation_results_file:
         for example in test_evaluation_results:
             json_line = json.dumps(example)
             evaluation_results_file.write(json_line + "\n")     
@@ -103,7 +103,7 @@ def test_analyze_metric_correct_averages(config, test_evaluation_results):
 
 def test_analyze_metric_exact_and_line_match_are_binary(config, test_evaluation_results):
     _ensure_output_paths_exist(config)
-    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
+    with config.evaluation_results_path.open("w") as evaluation_results_file:
         for example in test_evaluation_results:
             json_line = json.dumps(example)
             evaluation_results_file.write(json_line + "\n")    
@@ -117,7 +117,7 @@ def test_analyze_metric_exact_and_line_match_are_binary(config, test_evaluation_
  
 def test_analyze_metric_sentencebleu_codebleu_perplexity_are_not_binary(config, test_evaluation_results):
     _ensure_output_paths_exist(config)
-    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
+    with config.evaluation_results_path.open("w") as evaluation_results_file:
         for example in test_evaluation_results:
             json_line = json.dumps(example)
             evaluation_results_file.write(json_line + "\n")     
@@ -138,7 +138,7 @@ def test_analyze_metric_codebleu_skips_invalid_entries(config):
         {"base_codebleu": 0.9, "lora_codebleu": 0.95, "codebleu_valid": True},
         {"base_codebleu": 0.0, "lora_codebleu": 0.0,  "codebleu_valid": False},
     ]
-    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
+    with config.evaluation_results_path.open("w") as evaluation_results_file:
         for example in codebleu_results :
             json_line = json.dumps(example)
             evaluation_results_file.write(json_line + "\n")    
@@ -176,8 +176,8 @@ def test_save_all_metric_stats(config, test_metric_stats_np):
     _ensure_output_paths_exist(config)
     save_all_metric_stats(config, test_metric_stats_np)
 
-    assert config.benchmark_analysis_results_path.exists()
-    assert config.benchmark_analysis_results_path.stat().st_size > 0
+    assert config.analysis_results_path.exists()
+    assert config.analysis_results_path.stat().st_size > 0
 
 
 # --- plot_all_metric_averages_and_save ---

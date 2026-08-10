@@ -88,6 +88,6 @@ def test_validate_metric_weights_raises_when_sentencebleu_weights_do_not_sum_to_
 
 def test_setup_paths_dataset_paths_are_under_workspace(config):
     assert str(config.benchmark_dataset_path).startswith(str(config.workspace_path))
-    assert str(config.benchmark_evaluation_results_path).startswith(str(config.workspace_path))
-    assert str(config.benchmark_analysis_results_path).startswith(str(config.workspace_path))
+    assert str(config.evaluation_results_path).startswith(str(config.workspace_path))
+    assert str(config.analysis_results_path).startswith(str(config.workspace_path))
 

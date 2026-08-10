@@ -1,7 +1,7 @@
 import contextlib
 import json
 import logging
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
 
@@ -101,21 +101,25 @@ def start_run(config: TrackerConfig, run_name: str):
     return mlflow.start_run(run_name=run_name)
 
 
-def _flatten(config, prefix: str) -> dict[str, Any]:
-    flat = {}
-    for f in fields(config):
-        if f.name in _SKIP_FIELDS:
+def _flatten_fields(config, prefix: str) -> dict[str, Any]:
+    flattened_dict = {}
+    for field in fields(config):
+        if field.name in _SKIP_FIELDS:
             continue
-        value = getattr(config, f.name)
-        flat[f"{prefix}.{f.name}"] = value if isinstance(value, (int, float, bool, str)) else str(value)
-    return flat
+        field_value = getattr(config, field.name)
+        key = f"{prefix}.{field.name}"
+        if isinstance(field_value, (int, float, bool, str)):
+            flattened_dict[key] = field_value
+        else:
+            flattened_dict[key] = str(field_value)
+    return flattened_dict
 
 
 def log_stage_params(stage_config, stage: str) -> None:
     if not _MLFLOW_AVAILABLE or mlflow.active_run() is None:
         return
-    flat = _flatten(stage_config, prefix=stage)
-    items = list(flat.items())
+    flattened_fields = _flatten_fields(stage_config, prefix=stage)
+    items = list(flattened_fields.items())
     for i in range(0, len(items), 100):  # mlflow caps log_params at 100 pairs/call
         mlflow.log_params(dict(items[i : i + 100]))
 
@@ -150,10 +154,9 @@ def log_preprocess(preprocess_config: Any) -> None:
     if not _MLFLOW_AVAILABLE or mlflow.active_run() is None:
         return
     
-    # Consolidate parameter logging
     log_stage_params(preprocess_config, "preprocess")
 
-    results_dir = preprocess_config.preprocess_results_path
+    results_dir = preprocess_config.results_dir_path
     if results_dir.exists():
         for item in results_dir.iterdir():
             if item.is_file():
@@ -166,7 +169,7 @@ def log_finetune(finetune_config: Any, tracker_config: TrackerConfig) -> None:
         
     log_stage_params(finetune_config, "finetune")
 
-    results_dir = finetune_config.finetune_outputs_dir_path / "results" 
+    results_dir = finetune_config.results_dir_path
     if results_dir.exists():
         for item in results_dir.iterdir():
             if item.is_file():
@@ -186,7 +189,7 @@ def log_evaluate(evaluate_config: Any) -> None:
         
     log_stage_params(evaluate_config, "evaluate")
 
-    analysis_path = evaluate_config.benchmark_analysis_results_path
+    analysis_path = evaluate_config.analysis_results_path
     if analysis_path.exists():
         with open(analysis_path, "r") as f:
             report = json.load(f)
@@ -207,9 +210,12 @@ def log_evaluate(evaluate_config: Any) -> None:
                 f"evaluate.{metric_name}.improvement": float(improvement),
             })
             
-    outputs_dir = evaluate_config.evaluate_outputs_dir_path
-    if outputs_dir.exists():
-        mlflow.log_artifacts(str(outputs_dir), artifact_path="evaluation_outputs")
+    results_dir = evaluate_config.results_dir_path
+    if results_dir.exists():
+        mlflow.log_artifacts(str(results_dir), artifact_path="evaluation_outputs/results")
+    benchmark_dataset = evaluate_config.benchmark_dataset_path
+    if benchmark_dataset.exists():
+        mlflow.log_artifacts(str(benchmark_dataset), artifact_path="evaluation_outputs/datasets")
 
 
 def log_convert(convert_config: Any, tracker_config: TrackerConfig) -> None:

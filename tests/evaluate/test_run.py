@@ -28,14 +28,14 @@ def config(tmp_path) -> Config:
 
 def test_ensure_output_paths_exist_creates_directories(config):
     # Ensure directories do not exist initially
-    assert not config.evaluate_outputs_dir_path.exists()
-    assert not config.benchmark_evaluation_results_dir.exists()
+    assert not config.outputs_dir_path.exists()
+    assert not config.evaluation_results_path.parent.exists()
 
     _ensure_output_paths_exist(config)
 
     # Check that parent directories were correctly created on the file system
-    assert config.evaluate_outputs_dir_path.exists()
-    assert config.benchmark_evaluation_results_dir.exists()
+    assert config.outputs_dir_path.exists()
+    assert config.evaluation_results_path.parent.exists()
 
 
 # --- _get_checkpoint_path ---

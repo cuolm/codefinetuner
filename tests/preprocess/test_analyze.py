@@ -99,7 +99,7 @@ def test_load_dataset_stats_skips_blank_lines_and_missing_middle(dataset_file):
 def test_plot_token_distribution_saves_file(config, stats_arrays):
     _ensure_output_paths_exist(config)
     config.max_token_sequence_length = 12
-    output_path = config.preprocess_results_path / "token_length_distribution.png"
+    output_path = config.results_dir_path / "token_length_distribution.png"
 
     _plot_token_distribution(
         config,
@@ -117,7 +117,7 @@ def test_plot_middle_distribution_saves_file(config, stats_arrays):
     _ensure_output_paths_exist(config)
     config.min_middle_tokens_length = 2
     config.max_middle_tokens_length = 8
-    output_path = config.preprocess_results_path / "middle_token_length_distribution.png"
+    output_path = config.results_dir_path / "middle_token_length_distribution.png"
 
     _plot_middle_distribution(
         config,
@@ -133,7 +133,7 @@ def test_plot_middle_distribution_saves_file(config, stats_arrays):
 
 def test_plot_split_comparison_saves_file(config, stats_arrays):
     _ensure_output_paths_exist(config)
-    output_path = config.preprocess_results_path / "split_sizes.png"
+    output_path = config.results_dir_path / "split_sizes.png"
 
     _plot_split_comparison(
         stats_arrays["train"],
@@ -163,9 +163,9 @@ def test_analyze_and_plot_datasets_creates_all_plots(config, dataset_examples):
 
     analyze_and_plot_datasets(config, FIM_MIDDLE_TOKEN_ID, EOS_TOKEN_ID)
 
-    token_dist = config.preprocess_results_path / "token_length_distribution.png"
-    middle_dist = config.preprocess_results_path / "middle_token_length_distribution.png"
-    split_sizes = config.preprocess_results_path / "split_sizes.png"
+    token_dist = config.results_dir_path / "token_length_distribution.png"
+    middle_dist = config.results_dir_path / "middle_token_length_distribution.png"
+    split_sizes = config.results_dir_path / "split_sizes.png"
 
     assert token_dist.exists() and token_dist.stat().st_size > 0
     assert middle_dist.exists() and middle_dist.stat().st_size > 0

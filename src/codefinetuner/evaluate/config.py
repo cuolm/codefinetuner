@@ -74,11 +74,11 @@ class Config:
     workspace_path: Path | None = None 
     finetune_outputs_path: Path = field(init=False)
     test_dataset_path: Path = field(init=False)  
-    evaluate_outputs_dir_path: Path = field(init=False)
+    outputs_dir_path: Path = field(init=False)
     benchmark_dataset_path: Path = field(init=False)
-    benchmark_evaluation_results_dir: Path = field(init=False)
-    benchmark_evaluation_results_path: Path = field(init=False)
-    benchmark_analysis_results_path: Path = field(init=False)
+    results_dir_path: Path = field(init=False)
+    evaluation_results_path: Path = field(init=False)
+    analysis_results_path: Path = field(init=False)
 
     @classmethod
     def load_from_yaml(cls, yaml_path: Path) -> "Config":
@@ -140,11 +140,11 @@ class Config:
             self.workspace_path = Path.cwd()
         self.finetune_outputs_path = self.workspace_path / "outputs" / "finetune"
         self.test_dataset_path = self.workspace_path / "outputs" / "preprocess" / "results" / "datasets" / "test_dataset.jsonl"
-        self.evaluate_outputs_dir_path = self.workspace_path / "outputs" / "evaluate"
-        self.benchmark_dataset_path = self.evaluate_outputs_dir_path / "datasets" / "benchmark_dataset.jsonl"
-        self.benchmark_evaluation_results_dir = self.evaluate_outputs_dir_path / "results"
-        self.benchmark_evaluation_results_path = self.benchmark_evaluation_results_dir / "evaluation_results.jsonl"
-        self.benchmark_analysis_results_path = self.benchmark_evaluation_results_dir / "analysis_results.json"
+        self.outputs_dir_path = self.workspace_path / "outputs" / "evaluate"
+        self.results_dir_path = self.outputs_dir_path / "results"
+        self.benchmark_dataset_path = self.outputs_dir_path / "datasets" / "benchmark_dataset.jsonl"
+        self.evaluation_results_path = self.results_dir_path / "evaluation_results.jsonl"
+        self.analysis_results_path = self.results_dir_path / "analysis_results.json"
         logger.debug(f"Resolved workspace path to: {self.workspace_path}")
 
 

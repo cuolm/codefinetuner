@@ -18,7 +18,7 @@ def analyze_metric(config: Config, metric_name: str, higher_is_better: bool) -> 
 
     base_scores, lora_scores = [], []
     
-    with open(config.benchmark_evaluation_results_path, 'r') as evaluation_results_file:
+    with open(config.evaluation_results_path, 'r') as evaluation_results_file:
         for line in evaluation_results_file:
             line = line.strip()
             if not line:
@@ -170,9 +170,9 @@ def save_all_metric_stats(config: Config, all_metric_stats_np: list[dict]) -> No
         "evaluation_date": datetime.now().isoformat(timespec="seconds"),
         "all_metric_stats": all_metric_stats 
     }
-    with open(config.benchmark_analysis_results_path, "w") as report_file:
+    with open(config.analysis_results_path, "w") as report_file:
         json.dump(report_content, report_file, indent=4)
-    logger.info(f"Analysis results saved to: {config.benchmark_analysis_results_path}")
+    logger.info(f"Analysis results saved to: {config.analysis_results_path}")
 
 
 def plot_all_metric_averages_and_save(all_metric_stats_np: dict, plot_path: Path) -> None:

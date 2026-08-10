@@ -49,6 +49,8 @@ class Config:
     # --- Paths ---
     workspace_path: Path | None = None 
     raw_data_path: Path | None = None 
+    outputs_dir_path: Path = field(init=False)
+    results_dir_path: Path = field(init=False)
     train_dataset_path: Path = field(init=False)
     eval_dataset_path: Path = field(init=False)
     test_dataset_path: Path = field(init=False)
@@ -111,12 +113,12 @@ class Config:
             except Exception:
                 raise FileNotFoundError("Missing internal tree_sitter_definitions.json") 
 
-        self.preprocess_outputs_dir_path = self.workspace_path / "outputs" / "preprocess"
-        self.preprocess_results_path = self.preprocess_outputs_dir_path / "results"
-        self.train_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "train_dataset.jsonl"
-        self.eval_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "eval_dataset.jsonl"
-        self.test_dataset_path = self.preprocess_outputs_dir_path / "results" / "datasets" / "test_dataset.jsonl"
-        self.split_log_path = self.preprocess_outputs_dir_path / "results" / "split_log.jsonl"
+        self.outputs_dir_path = self.workspace_path / "outputs" / "preprocess"
+        self.results_dir_path = self.outputs_dir_path / "results"
+        self.train_dataset_path = self.results_dir_path / "datasets" / "train_dataset.jsonl"
+        self.eval_dataset_path = self.results_dir_path / "datasets" / "eval_dataset.jsonl"
+        self.test_dataset_path = self.results_dir_path / "datasets" / "test_dataset.jsonl"
+        self.split_log_path = self.results_dir_path / "split_log.jsonl"
         logger.debug(f"Resolved workspace path to: {self.workspace_path}")
  
     def _load_language_blocks(self) -> None:

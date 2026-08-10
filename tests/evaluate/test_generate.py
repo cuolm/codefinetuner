@@ -214,7 +214,7 @@ def test_generate_and_save_passes(config, tokenizer, mocker):
 
     generated_middle_tokens = tokenizer.decode(generated_middle_token_ids, skip_special_tokens=True)
 
-    with config.benchmark_evaluation_results_path.open("r") as evaluation_results_file:
+    with config.evaluation_results_path.open("r") as evaluation_results_file:
         lines = evaluation_results_file.readlines()
 
     assert len(lines) == len(BENCHMARK_EXAMPLES)

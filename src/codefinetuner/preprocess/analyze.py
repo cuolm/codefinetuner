@@ -147,7 +147,7 @@ def _plot_split_comparison(
 
 
 def analyze_and_plot_datasets(config: Config, fim_middle_token_id: int, eos_token_id: int) -> None:
-    results_dir = config.preprocess_results_path
+    results_dir = config.results_dir_path
 
     train_stats = _load_dataset_stats(config.train_dataset_path, fim_middle_token_id, eos_token_id)
     eval_stats = _load_dataset_stats(config.eval_dataset_path, fim_middle_token_id, eos_token_id)

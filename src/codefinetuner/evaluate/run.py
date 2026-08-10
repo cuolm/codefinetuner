@@ -70,13 +70,13 @@ def _silence_noisy_third_party_loggers() -> None:
     logging.getLogger("nltk").setLevel(logging.WARNING)
 
 
-def _ensure_output_paths_exist(config) -> None:
+def _ensure_output_paths_exist(config: Config) -> None:
     paths = [
-        config.evaluate_outputs_dir_path,
+        config.outputs_dir_path,
+        config.results_dir_path,
         config.benchmark_dataset_path,
-        config.benchmark_evaluation_results_dir,
-        config.benchmark_evaluation_results_path,
-        config.benchmark_analysis_results_path,
+        config.evaluation_results_path,
+        config.analysis_results_path,
     ]
     for path in paths:
         if not path.parent.exists():
@@ -116,11 +116,11 @@ def run(config: Config) -> None:
         metric_stats_np = analyze_metric(config, metric_name, higher_is_better)
         if not metric_stats_np:  # skip empty metric stats
             continue
-        plot_path = get_plot_path(config.benchmark_evaluation_results_dir, metric_name)
+        plot_path = get_plot_path(config.results_dir_path, metric_name)
         plot_metric_and_save(metric_stats_np, metric_name, plot_path)
         all_metric_stats_np.append(metric_stats_np)
     
-    all_metric_averages_plot_path = get_plot_path(config.benchmark_evaluation_results_dir, "all_metric_averages")
+    all_metric_averages_plot_path = get_plot_path(config.results_dir_path, "all_metric_averages")
     plot_all_metric_averages_and_save(all_metric_stats_np, all_metric_averages_plot_path) 
     save_all_metric_stats(config, all_metric_stats_np)
 

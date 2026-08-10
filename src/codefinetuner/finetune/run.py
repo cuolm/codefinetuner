@@ -68,9 +68,10 @@ def _parse_args() -> argparse.Namespace:
     return args
 
 
-def _ensure_output_paths_exist(config) -> None:
+def _ensure_output_paths_exist(config: Config) -> None:
     paths = [
-        config.finetune_outputs_dir_path,
+        config.outputs_dir_path,
+        config.results_dir_path,
         config.trainer_checkpoints_dir_path,
         config.trainer_model_merge_offload_folder_path,
         config.trainer_log_path, 

@@ -39,13 +39,13 @@ def tokenizer(config) -> AutoTokenizer:
 # --- test_ensure_output_paths_exist ---
 
 def test_ensure_output_paths_exist(config):
-    assert not config.preprocess_outputs_dir_path.exists()
+    assert not config.outputs_dir_path.exists()
     assert not config.train_dataset_path.parent.exists()
     
     _ensure_output_paths_exist(config)
     
-    assert config.preprocess_outputs_dir_path.exists()
-    assert config.preprocess_results_path.exists()
+    assert config.outputs_dir_path.exists()
+    assert config.results_dir_path.exists()
     assert config.train_dataset_path.parent.exists()
 
 

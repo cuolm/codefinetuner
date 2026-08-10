@@ -36,7 +36,7 @@ def test_evaluation_results():
 
 def test_evaluate_and_save_passes(config, mocker, test_evaluation_results):
     _ensure_output_paths_exist(config)
-    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
+    with config.evaluation_results_path.open("w") as evaluation_results_file:
         evaluation_results_file.write(json.dumps(test_evaluation_results) + "\n")
 
     get_codebleu_mock = mocker.patch("codefinetuner.evaluate.evaluate.get_codebleu", return_value=(0.9, True))
@@ -47,7 +47,7 @@ def test_evaluate_and_save_passes(config, mocker, test_evaluation_results):
     evaluate_and_save(config)
 
     # after update of the evaluation_results_file file with evaluation results such as codebleu...
-    with config.benchmark_evaluation_results_path.open("r") as evaluation_results_file:
+    with config.evaluation_results_path.open("r") as evaluation_results_file:
         lines = evaluation_results_file.readlines()
         assert len(lines) == 1
         result = json.loads(lines[0])
@@ -73,11 +73,11 @@ def test_evaluate_and_save_passes(config, mocker, test_evaluation_results):
 
 def test_evaluate_and_save_raises_runtime_error(config, mocker, test_evaluation_results):
     _ensure_output_paths_exist(config)
-    with config.benchmark_evaluation_results_path.open("w") as evaluation_results_file:
+    with config.evaluation_results_path.open("w") as evaluation_results_file:
         evaluation_results_file.write(json.dumps(test_evaluation_results) + "\n")
 
     mocker.patch("codefinetuner.evaluate.evaluate.get_codebleu", side_effect=Exception("Simulated metric failure"))
-    temp_path = config.benchmark_evaluation_results_path.with_name(f"{config.benchmark_evaluation_results_path.name}.tmp")
+    temp_path = config.evaluation_results_path.with_name(f"{config.evaluation_results_path.name}.tmp")
 
     with pytest.raises(RuntimeError, match="Evaluation failed at example 0: Simulated metric failure"):
         evaluate_and_save(config)
