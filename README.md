@@ -1,6 +1,6 @@
 # CodeFinetuner
 [![PyPI](https://img.shields.io/pypi/v/codefinetuner.svg)](https://pypi.org/project/codefinetuner/)
-[![License](https://img.shields.io/github/license/cuolm/codefinetuner.svg)](LICENSE.txt)
+[![License](https://img.shields.io/github/license/cuolm/codefinetuner.svg)](/LICENSE.txt)
 [![Release](https://github.com/cuolm/codefinetuner/actions/workflows/release.yaml/badge.svg)](https://github.com/cuolm/codefinetuner/actions/workflows/release.yaml)
 [![Tests](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yaml/badge.svg)](https://github.com/cuolm/codefinetuner/actions/workflows/tests.yaml)
 
@@ -249,7 +249,7 @@ uv run mlflow ui --backend-store-uri sqlite:///outputs/mlflow/mlflow.db
 ```
 
 ### Model Artifact Logging
-Use the `mlflow_model_logging_strategy` config parameter to control which model artifacts (LoRA adapters, merged GGUF models) get logged, since GGUF exports can be large. See the [Configuration Reference Guide](/docs/config-file.md) for all options.
+Use the `mlflow_model_logging_strategy` config parameter to control which model artifacts (LoRA adapters, merged GGUF models) get logged, since GGUF exports can be large. See the [Configuration Reference Guide](/docs/configuration/config-file.md) for all options.
 
 ## Finetuned Model Usage
 The `convert` stage exports the final model to [GGUF](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md) format for local inference. The resulting file is saved at `outputs/convert/results/lora_model.gguf`. 
