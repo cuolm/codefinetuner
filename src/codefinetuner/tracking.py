@@ -156,11 +156,9 @@ def log_preprocess(preprocess_config: Any) -> None:
     
     log_stage_params(preprocess_config, "preprocess")
 
-    results_dir = preprocess_config.results_dir_path
-    if results_dir.exists():
-        for item in results_dir.iterdir():
-            if item.is_file():
-                mlflow.log_artifact(str(item), artifact_path="preprocess_outputs")
+    outputs_dir = preprocess_config.outputs_dir_path
+    if outputs_dir.exists():
+         mlflow.log_artifacts(str(outputs_dir), artifact_path="preprocess_outputs")
 
 
 def log_finetune(finetune_config: Any, tracker_config: TrackerConfig) -> None:
@@ -189,10 +187,10 @@ def log_evaluate(evaluate_config: Any) -> None:
         
     log_stage_params(evaluate_config, "evaluate")
 
-    analysis_path = evaluate_config.analysis_results_path
-    if analysis_path.exists():
-        with open(analysis_path, "r") as f:
-            report = json.load(f)
+    analysis_results_path = evaluate_config.analysis_results_path
+    if analysis_results_path.exists():
+        with open(analysis_results_path, "r") as results_file:
+            report = json.load(results_file)
             
         for stat in report.get("all_metric_stats", []):
             metric_name = stat["metric"]
@@ -210,12 +208,9 @@ def log_evaluate(evaluate_config: Any) -> None:
                 f"evaluate.{metric_name}.improvement": float(improvement),
             })
             
-    results_dir = evaluate_config.results_dir_path
-    if results_dir.exists():
-        mlflow.log_artifacts(str(results_dir), artifact_path="evaluation_outputs/results")
-    benchmark_dataset = evaluate_config.benchmark_dataset_path
-    if benchmark_dataset.exists():
-        mlflow.log_artifacts(str(benchmark_dataset), artifact_path="evaluation_outputs/datasets")
+    evaluation_outputs_dir = evaluate_config.outputs_dir_path
+    if evaluation_outputs_dir.exists():
+        mlflow.log_artifacts(str(evaluation_outputs_dir), artifact_path="evaluation_outputs")
 
 
 def log_convert(convert_config: Any, tracker_config: TrackerConfig) -> None:
