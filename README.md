@@ -132,7 +132,7 @@ The pipeline uses a single-source-of-truth YAML configuration file. It utilizes 
 
 ### Configuration Structure
 
-Create `codefinetuner_config.yaml` using the template below. For the full parameter list, see the [Configuration Reference Guide](/docs/config-file.md).
+Create `codefinetuner_config.yaml` using the template below. For the full parameter list, see the [Configuration Reference Guide](/docs/configuration/config-file.md).
 
 ```yaml
 # globals contain all the mandatory parameters.
@@ -253,7 +253,7 @@ Use the `mlflow_model_logging_strategy` config parameter to control which model 
 
 ## Finetuned Model Usage
 The `convert` stage exports the final model to [GGUF](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md) format for local inference. The resulting file is saved at `outputs/convert/results/lora_model.gguf`. 
-For setup instructions with the VS Code extension [llama.vscode](https://github.com/ggml-org/llama.vscode), see the [inference-vscode](/docs/inference-vscode.md) guide.
+For setup instructions with the VS Code extension [llama.vscode](https://github.com/ggml-org/llama.vscode), see the [inference-vscode](/docs/inference-llama-vscode/inference-vscode.md) guide.
 
 
 ## Docker Image
