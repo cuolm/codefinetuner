@@ -15,6 +15,7 @@ It trains a Low-Rank Adapter ([LoRA](https://arxiv.org/abs/2106.09685)) on Struc
 - [Installation](#installation)
 - [Configuration](#configuration)
 - [Usage](#usage)
+- [MLflow Tracking](#mlflow-tracking)
 - [Finetuned Model Usage](#finetuned-model-usage)
 - [Docker Image](#docker-image)
 - [Tree-sitter Customization](#tree-sitter-customization)
@@ -39,7 +40,7 @@ Raw Code Files
 [Evaluate]    -- CodeBLEU, SentenceBLEU, edit similarity, exact match, line match, perplexity
      |
      v
-[Convert]      -- GGUF conversion -> quantized model for deployment
+[Convert]     -- GGUF conversion -> quantized model for deployment
 ```
 
 ## Project Structure
@@ -69,15 +70,15 @@ Here is an example illustrating how a single FIM example is created:
   <tr>
     <td align="center" valign="top">
       <strong>Source Code File</strong><br>
-      <img src="/docs/readme-assets/code-file.png" alt="code-file" width="250">
+      <img src="docs/readme-assets/code-file.png" alt="code-file" width="250">
     </td>
     <td align="center" valign="top">
       <strong>Code Block</strong><br>
-      <img src="/docs/readme-assets/code-block.png" alt="code-block" width="250">
+      <img src="docs/readme-assets/code-block.png" alt="code-block" width="250">
     </td>
     <td align="center" valign="top">
       <strong>One Subblock</strong><br>
-      <img src="/docs/readme-assets/code-subblock.png" alt="code-subblock" width="250">
+      <img src="docs/readme-assets/code-subblock.png" alt="code-subblock" width="250">
     </td>
   </tr>
 </table>
@@ -99,6 +100,7 @@ codefinetuner --config="codefinetuner_config.yaml"
 ```
 
 ## Installation
+> **Note:** See [MLflow Tracking](#mlflow-tracking) to install with MLflow tracking support (```codefinetuner[mlflow]```).
  
 ### As a Global CLI Tool
 ```bash
@@ -210,6 +212,44 @@ codefinetuner.run_pipeline(
     skip_convert=True
 )
 ```
+## MLflow Tracking
+CodeFinetuner can track metrics and artifacts for each pipeline stage using [MLflow](https://mlflow.org/). It is an optional extra, not installed by default.
+
+### Enable MLflow
+
+**As a Global CLI Tool**
+```bash
+uv tool install codefinetuner[mlflow]
+```
+
+**As a Library Dependency**
+```bash
+uv add codefinetuner[mlflow]
+# or
+pip install codefinetuner[mlflow]
+```
+
+**From Source**
+```bash
+git clone --recurse-submodules https://github.com/cuolm/codefinetuner
+cd codefinetuner
+
+# Using uv (Recommended) — mlflow is already included via the dev dependency group
+uv sync
+
+# Using pip
+pip install -r requirements.txt
+pip install -e ".[mlflow]"
+```
+
+### View Tracked Runs
+Tracking data is stored locally in a SQLite backend under `outputs/mlflow`. Launch the UI to inspect runs:
+```bash
+uv run mlflow ui --backend-store-uri sqlite:///outputs/mlflow/mlflow.db
+```
+
+### Model Artifact Logging
+Use the `mlflow_model_logging_strategy` config parameter to control which model artifacts (LoRA adapters, merged GGUF models) get logged, since GGUF exports can be large. See the [Configuration Reference Guide](/docs/config-file.md) for all options.
 
 ## Finetuned Model Usage
 The `convert` stage exports the final model to [GGUF](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md) format for local inference. The resulting file is saved at `outputs/convert/results/lora_model.gguf`. 
@@ -217,7 +257,7 @@ For setup instructions with the VS Code extension [llama.vscode](https://github.
 
 
 ## Docker Image
-Docker images are automatically built and published using GitHub Actions. Separate images are available for GPU and CPU usage. The built images can be found in the project's [GitHub Container Registry](https://ghcr.io/cuolm/codefinetuner).
+Docker images are automatically built and published using GitHub Actions. Separate images are available for GPU and CPU usage. The built images can be found in the project's [GitHub Container Registry](https://ghcr.io/cuolm/codefinetuner). Images are tagged `:cpu`/`:gpu` (always pointing to the latest release) and by version. Containers start an SSH service automatically, useful for remote GPU providers like RunPod (See the [RunPod Setup Guide](/docs/runpod-setup/setup-runpod.md)).
 
 ### Manual Build
 
@@ -254,8 +294,8 @@ docker run -it --rm \
 ## Tree-sitter Customization
 Tree-sitter turns source code into structural blocks used to generate FIM examples. Use this section to add new languages or build missing parsers.
 
-- [Add Language Definitions](/docs/tree-sitter-customization.md#add-new-language-block-definitions): define `block_types` and `subblock_types` in JSON.
-- [Build Custom Parser](/docs/tree-sitter-customization.md#build-custom-parser): compile a parser from source, for example for Mojo.
+- [Add Language Definitions](/docs/tree-sitter-customization/tree-sitter-customization.md#add-new-language-block-definitions): define `block_types` and `subblock_types` in JSON.
+- [Build Custom Parser](/docs/tree-sitter-customization/tree-sitter-customization.md#build-custom-parser): compile a parser from source, for example for Mojo.
 
 ## Tests
 Run the test suite with:
