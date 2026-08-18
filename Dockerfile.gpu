@@ -40,9 +40,9 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
-# Install codefinetuner globally as a uv tool
+# Install codefinetuner with mlflow extra globally as a uv tool
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv tool install codefinetuner
+    uv tool install "codefinetuner[mlflow]" 
 
 # Activate tool binaries and project virtual environment globally (for non-SSH containers)
 ENV PATH="/root/.local/bin:/app/.venv/bin:$PATH"
