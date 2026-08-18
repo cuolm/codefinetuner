@@ -18,6 +18,7 @@ Navigate to the **Templates** section and click **New Template**.
 - **Container name:** e.g. `codefinetuner-gpu`
 - **Container image:** the project's latest GPU Docker image, `ghcr.io/cuolm/codefinetuner:gpu`
 - **Container disk:** set an appropriate size based on your fine-tuning requirements (model size, codebase size, etc.)
+- **Expose TCP Ports:** `22` enables direct IP:port access instead of RunPod's SSH proxy, which doesn't support SCP/SFTP or VS Code Remote-SSH
 
 Click **Create**.
 
@@ -49,4 +50,4 @@ Note: Replace `POD_IP` and `POD_PORT` with the values shown on your Pod's Connec
    Note: Replace `POD_IP` and `POD_PORT` with your Pod's actual values.
 4. Follow the setup steps, then click **Open Folder** and specify `/app`.
 
-You are now at the root of the project inside the Pod. See the fine-tuning examples under `root/examples` for full fine-tuning runs.
+You are now at the root of the project inside the Pod. 
